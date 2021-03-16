@@ -15,9 +15,31 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+LIST(APPEND CMAKE_PREFIX_PATH "${CMAKE_INSTALL_PREFIX}/../Chrono/lib")
+find_package(Chrono
+             COMPONENTS Vehicle
+             CONFIG)
+
+#--------------------------------------------------------------
+# Return now if Chrono or a required component was not found.
+#--------------------------------------------------------------
+
+if (NOT Chrono_FOUND)
+  message("Could not find Chrono or one of its required modules")
+  return()
+endif()
+
+#--------------------------------------------------------------
+# Add path to Chrono headers and to headers of all dependencies
+# of the requested modules.
+#--------------------------------------------------------------
+
+include_directories(${CHRONO_INCLUDE_DIRS})
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -29,5 +51,19 @@ if(BUILD_TESTING)
   #set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
+
+add_executable(chrono_test_node src/chrono_test.cpp)
+ament_target_dependencies(chrono_test_node rclcpp geometry_msgs Chrono)
+
+install(TARGETS
+  chrono_test_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
 
 ament_package()
