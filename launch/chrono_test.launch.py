@@ -5,5 +5,5 @@ import launch_ros.actions
 def generate_launch_description():
     return LaunchDescription([
         launch_ros.actions.Node(
-            package='chronoros', node_executable='chrono_test_node'),
+            package='chronoros', node_executable='chrono_test_node', output='screen'),
     ])
