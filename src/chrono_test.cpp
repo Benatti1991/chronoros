@@ -37,6 +37,8 @@ struct RosVehicle {
 
     RosVehicle() {
         GetLog() << "Copyright (c) 2017 projectchrono.org\nChrono version: " << CHRONO_VERSION << "\n\n";
+        SetChronoDataPath("/home/simonebenatti/codes/chronosensor/chrono/data/");
+        SetDataPath("/home/simonebenatti/codes/chronosensor/chrono/data/vehicle/");
         // Initial vehicle location and orientation
         ChVector<> initLoc(0, 0, 1.6);
         ChQuaternion<> initRot(1, 0, 0, 0);
@@ -59,10 +61,10 @@ struct RosVehicle {
         PowertrainModelType powertrain_model = PowertrainModelType::SHAFTS;
 
         // Drive type (FWD, RWD, or AWD)
-        DrivelineType drive_type = DrivelineType::AWD;
+        DrivelineTypeWV drive_type = DrivelineTypeWV::AWD;
 
         // Steering type (PITMAN_ARM or PITMAN_ARM_SHAFTS)
-        SteeringType steering_type = SteeringType::PITMAN_ARM;
+        SteeringTypeWV steering_type = SteeringTypeWV::PITMAN_ARM;
 
         // Type of tire model (RIGID, RIGID_MESH, TMEASY, PACEJKA, LUGRE, FIALA, PAC89, PAC02)
         TireModelType tire_model = TireModelType::TMEASY;
@@ -85,7 +87,7 @@ struct RosVehicle {
         tire_step_size = 1e-3;
 
         // Simulation end time
-        t_end = 20;
+        t_end = 200;
 
         // Time interval between two render frames
         render_step_size = 1.0 / 50;  // FPS = 50
@@ -218,7 +220,7 @@ struct RosVehicle {
 
         if (contact_vis) {
             app->SetSymbolscale(1e-4);
-            app->SetContactsDrawMode(ChIrrTools::eCh_ContactsDrawMode::CONTACT_FORCES);
+            app->SetContactsDrawMode(IrrContactsDrawMode::CONTACT_FORCES);
         }
 
         ChRealtimeStepTimer realtime_timer;
@@ -300,7 +302,7 @@ public:
     publisher_ =
         this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
     timer_ = this->create_wall_timer(
-        500ms, std::bind(&MinimalPublisher::timer_callback, this));
+        20ms, std::bind(&MinimalPublisher::timer_callback, this));
   }
 
 private:
