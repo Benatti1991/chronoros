@@ -185,19 +185,19 @@ struct RosVehicle {
         // ------------------------
 
         // Create the interactive driver system
-        driver = std::make_shared<ChIrrGuiDriver>(*app);
+        driver = std::make_shared<ChDriver>(my_hmmwv->GetVehicle());
 
         // Set the time response for steering and throttle keyboard inputs.
         double steering_time = 1.0;  // time to go from 0 to +1 (or from 0 to -1)
         double throttle_time = 1.0;  // time to go from 0 to +1
         double braking_time = 0.3;   // time to go from 0 to +1
-        driver->SetSteeringDelta(render_step_size / steering_time);
-        driver->SetThrottleDelta(render_step_size / throttle_time);
-        driver->SetBrakingDelta(render_step_size / braking_time);
+        //driver->SetSteeringDelta(render_step_size / steering_time);
+        //driver->SetThrottleDelta(render_step_size / throttle_time);
+        //driver->SetBrakingDelta(render_step_size / braking_time);
 
-        // If in playback mode, attach the data file to the driver system and
-        // force it to playback the driver inputs.
-        driver->Initialize();
+        //// If in playback mode, attach the data file to the driver system and
+        //// force it to playback the driver inputs.
+        //driver->Initialize();
 
         // ---------------
         // Simulation loop
@@ -266,7 +266,7 @@ struct RosVehicle {
             driver->Synchronize(time);
             terrain->Synchronize(time);
             my_hmmwv->Synchronize(time, driver_inputs, *terrain);
-            app->Synchronize(driver->GetInputModeAsString(), driver_inputs);
+            app->Synchronize("", driver_inputs);
 
             // Advance simulation for one timestep for all modules
             driver->Advance(step_size);
@@ -290,37 +290,47 @@ struct RosVehicle {
     double tire_step_size;
     double render_step_size;
     double debug_step_size;
-    std::shared_ptr<ChIrrGuiDriver> driver;
+    std::shared_ptr<ChDriver> driver;
     std::shared_ptr<RigidTerrain> terrain;
     std::shared_ptr<HMMWV_Full> my_hmmwv;
 };
 
-class MinimalPublisher : public rclcpp::Node {
+class SimNode : public rclcpp::Node {
 public:
-  MinimalPublisher() : Node("minimal_publisher") {
+  SimNode() : Node("chrono_sim") {
+    auto default_qos = rclcpp::QoS(rclcpp::SystemDefaultsQoS());
     myvehicle = std::make_shared<RosVehicle>();
-    publisher_ =
-        this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
-    timer_ = this->create_wall_timer(
-        20ms, std::bind(&MinimalPublisher::timer_callback, this));
+    actuation_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
+              "vehicle_actuation", default_qos,
+              std::bind(&SimNode::OnActuationMsg, this, std::placeholders::_1));
+    publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("vehicle_pose", 10);
+    timer_ = this->create_wall_timer(20ms, std::bind(&SimNode::timer_callback, this));
   }
 
 private:
   void timer_callback() {
-    auto message = std::make_shared<geometry_msgs::msg::Twist>();
-    message->linear.x = 0.3;
-    message->angular.z = 0.3;
-    myvehicle->advance_sim(.5);
-    publisher_->publish(*message);
+        myvehicle->advance_sim(.5);
+        auto message = std::make_shared<geometry_msgs::msg::Twist>();
+        message->linear.x = 0.3;
+        message->angular.z = 0.3;
+
+        publisher_->publish(*message);
   }
+
+  void OnActuationMsg(const geometry_msgs::msg::Twist::SharedPtr _msg){
+      myvehicle->driver->SetThrottle(_msg->linear.x);
+      myvehicle->driver->SetSteering(_msg->angular.z);
+    }
+
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
+  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr actuation_sub_;
   std::shared_ptr<RosVehicle> myvehicle;
 };
 
 int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<MinimalPublisher>());
+  rclcpp::spin(std::make_shared<SimNode>());
   rclcpp::shutdown();
   return 0;
 }
