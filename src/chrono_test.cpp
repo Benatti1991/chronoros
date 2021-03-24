@@ -20,6 +20,9 @@
 #include "chrono_vehicle/wheeled_vehicle/utils/ChWheeledVehicleIrrApp.h"
 #include "chrono_models/vehicle/hmmwv/HMMWV.h"
 #include "chrono_thirdparty/filesystem/path.h"
+#include "chrono_vehicle/utils/ChUtilsJSON.h"
+#include "chrono_vehicle/wheeled_vehicle/vehicle/WheeledVehicle.h"
+#include "ChronoRos.h"
 ///
 
 
@@ -42,10 +45,6 @@ struct RosVehicle {
         // Initial vehicle location and orientation
         ChVector<> initLoc(0, 0, 1.6);
         ChQuaternion<> initRot(1, 0, 0, 0);
-        // ChQuaternion<> initRot(0.866025, 0, 0, 0.5);
-        // ChQuaternion<> initRot(0.7071068, 0, 0, 0.7071068);
-        // ChQuaternion<> initRot(0.25882, 0, 0, 0.965926);
-        // ChQuaternion<> initRot(0, 0, 0, 1);
 
         // Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
         VisualizationType chassis_vis_type = VisualizationType::MESH;
@@ -57,8 +56,7 @@ struct RosVehicle {
         // Collision type for chassis (PRIMITIVES, MESH, or NONE)
         CollisionType chassis_collision_type = CollisionType::NONE;
 
-        // Type of powertrain model (SHAFTS, SIMPLE)
-        PowertrainModelType powertrain_model = PowertrainModelType::SHAFTS;
+
 
         // Drive type (FWD, RWD, or AWD)
         DrivelineTypeWV drive_type = DrivelineTypeWV::AWD;
@@ -107,28 +105,33 @@ struct RosVehicle {
         // --------------
 
         // Create the HMMWV vehicle, set parameters, and initialize
-        my_hmmwv = std::make_shared<HMMWV_Full>();
-        my_hmmwv->SetContactMethod(contact_method);
-        my_hmmwv->SetChassisCollisionType(chassis_collision_type);
-        my_hmmwv->SetChassisFixed(false);
-        my_hmmwv->SetInitPosition(ChCoordsys<>(initLoc, initRot));
-        my_hmmwv->SetPowertrainType(powertrain_model);
-        my_hmmwv->SetDriveType(drive_type);
-        my_hmmwv->SetSteeringType(steering_type);
-        my_hmmwv->SetTireType(tire_model);
-        my_hmmwv->SetTireStepSize(tire_step_size);
-        my_hmmwv->Initialize();
+        auto vehicle_model = Sedan_Model();
+        std::string rigidterrain_file("terrain/RigidPlane.json");
+        node_vehicle = std::make_shared<WheeledVehicle>(vehicle::GetDataFile(vehicle_model.VehicleJSON()), ChContactMethod::NSC);
+        node_vehicle->Initialize(ChCoordsys<>(initLoc, initRot));
+        node_vehicle->GetChassis()->SetFixed(false);
+        node_vehicle->SetChassisVisualizationType(VisualizationType::MESH);
+        node_vehicle->SetSuspensionVisualizationType(VisualizationType::PRIMITIVES);
+        node_vehicle->SetSteeringVisualizationType(VisualizationType::PRIMITIVES);
+        node_vehicle->SetWheelVisualizationType(VisualizationType::MESH);
 
-        if (tire_model == TireModelType::RIGID_MESH)
-            tire_vis_type = VisualizationType::MESH;
+        auto powertrain = ReadPowertrainJSON(vehicle::GetDataFile(vehicle_model.PowertrainJSON()));
+        node_vehicle->InitializePowertrain(powertrain);
 
-        my_hmmwv->SetChassisVisualizationType(chassis_vis_type);
-        my_hmmwv->SetSuspensionVisualizationType(suspension_vis_type);
-        my_hmmwv->SetSteeringVisualizationType(steering_vis_type);
-        my_hmmwv->SetWheelVisualizationType(wheel_vis_type);
-        my_hmmwv->SetTireVisualizationType(tire_vis_type);
+        // Create and initialize the tires
+        for (auto& axle : node_vehicle->GetAxles()) {
+            for (auto& wheel : axle->GetWheels()) {
+                auto tire = ReadTireJSON(vehicle::GetDataFile(vehicle_model.TireJSON()));
+                node_vehicle->InitializeTire(tire, wheel, VisualizationType::MESH);
+            }
+        }
+
+        node_vehicle->SetChassisVisualizationType(chassis_vis_type);
+        node_vehicle->SetSuspensionVisualizationType(suspension_vis_type);
+        node_vehicle->SetSteeringVisualizationType(steering_vis_type);
+        node_vehicle->SetWheelVisualizationType(wheel_vis_type);
         // Create the terrain
-        terrain = std::make_shared<RigidTerrain>(my_hmmwv->GetSystem());
+        terrain = std::make_shared<RigidTerrain>(node_vehicle->GetSystem(), vehicle::GetDataFile(rigidterrain_file));
 
         MaterialInfo minfo;
         minfo.mu = 0.9f;
@@ -144,7 +147,7 @@ struct RosVehicle {
         terrain->Initialize();
 
         // Create the vehicle Irrlicht interface
-        app = std::make_shared<ChWheeledVehicleIrrApp>(&(my_hmmwv->GetVehicle()), L"HMMWV Demo");
+        app = std::make_shared<ChWheeledVehicleIrrApp>(node_vehicle.get(), L"HMMWV Demo");
         app->SetSkyBox();
         app->AddTypicalLights(irr::core::vector3df(30.f, -30.f, 100.f), irr::core::vector3df(30.f, 50.f, 100.f), 250,
                              130);
@@ -153,62 +156,20 @@ struct RosVehicle {
         app->AssetBindAll();
         app->AssetUpdateAll();
 
-        // -----------------
-        // Initialize output
-        // -----------------
-
-        if (!filesystem::create_directory(filesystem::path(out_dir))) {
-            std::cout << "Error creating directory " << out_dir << std::endl;
-        }
-        if (povray_output) {
-            if (!filesystem::create_directory(filesystem::path(pov_dir))) {
-                std::cout << "Error creating directory " << pov_dir << std::endl;
-            }
-            terrain->ExportMeshPovray(out_dir);
-        }
-
-        // Initialize output file for driver inputs
-        std::string driver_file = out_dir + "/driver_inputs.txt";
-        utils::CSV_writer driver_csv(" ");
-
-        // Set up vehicle output
-        my_hmmwv->GetVehicle().SetChassisOutput(true);
-        my_hmmwv->GetVehicle().SetSuspensionOutput(0, true);
-        my_hmmwv->GetVehicle().SetSteeringOutput(0, true);
-        my_hmmwv->GetVehicle().SetOutput(ChVehicleOutput::ASCII, out_dir, "output", 0.1);
-
-        // Generate JSON information with available output channels
-        my_hmmwv->GetVehicle().ExportComponentList(out_dir + "/component_list.json");
-
         // ------------------------
         // Create the driver system
         // ------------------------
 
         // Create the interactive driver system
-        driver = std::make_shared<ChDriver>(my_hmmwv->GetVehicle());
+        driver = std::make_shared<ChDriver>(*node_vehicle);
+        driver->Initialize();
 
         // Set the time response for steering and throttle keyboard inputs.
         double steering_time = 1.0;  // time to go from 0 to +1 (or from 0 to -1)
         double throttle_time = 1.0;  // time to go from 0 to +1
         double braking_time = 0.3;   // time to go from 0 to +1
-        //driver->SetSteeringDelta(render_step_size / steering_time);
-        //driver->SetThrottleDelta(render_step_size / throttle_time);
-        //driver->SetBrakingDelta(render_step_size / braking_time);
 
-        //// If in playback mode, attach the data file to the driver system and
-        //// force it to playback the driver inputs.
-        //driver->Initialize();
-
-        // ---------------
-        // Simulation loop
-        // ---------------
-
-        my_hmmwv->GetVehicle().LogSubsystemTypes();
-
-        if (debug_output) {
-            GetLog() << "\n\n============ System Configuration ============\n";
-            my_hmmwv->LogHardpointLocations();
-        }
+        node_vehicle->LogSubsystemTypes();
 
         // Number of simulation steps between miscellaneous events
         render_steps = (int) std::ceil(render_step_size / step_size);
@@ -230,7 +191,7 @@ struct RosVehicle {
     void advance_sim(double deltaT) {
         double partial = 0;
         while(partial <= deltaT) {
-            double time = my_hmmwv->GetSystem()->GetChTime();
+            double time = node_vehicle->GetSystem()->GetChTime();
 
             // End simulation
             if (time >= t_end)
@@ -244,34 +205,19 @@ struct RosVehicle {
                 render_frame++;
             }
 
-            // Debug logging
-            //if (debug_output && step_number % debug_steps == 0) {
-            //    GetLog() << "\n\n============ System Information ============\n";
-            //    GetLog() << "Time = " << time << "\n\n";
-            //    my_hmmwv.DebugLog(OUT_SPRINGS | OUT_SHOCKS | OUT_CONSTRAINTS);
-            //
-            //    auto marker_driver = my_hmmwv.GetChassis()->GetMarkers()[0]->GetAbsCoord().pos;
-            //    auto marker_com = my_hmmwv.GetChassis()->GetMarkers()[1]->GetAbsCoord().pos;
-            //    GetLog() << "Markers\n";
-            //    std::cout << "  Driver loc:      " << marker_driver.x() << " " << marker_driver.y() << " "
-            //              << marker_driver.z() << std::endl;
-            //    std::cout << "  Chassis COM loc: " << marker_com.x() << " " << marker_com.y() << " " << marker_com.z()
-            //              << std::endl;
-            //}
-
             // Driver inputs
             ChDriver::Inputs driver_inputs = driver->GetInputs();
 
             // Update modules (process inputs from other modules)
             driver->Synchronize(time);
             terrain->Synchronize(time);
-            my_hmmwv->Synchronize(time, driver_inputs, *terrain);
+            node_vehicle->Synchronize(time, driver_inputs, *terrain);
             app->Synchronize("", driver_inputs);
 
             // Advance simulation for one timestep for all modules
             driver->Advance(step_size);
             terrain->Advance(step_size);
-            my_hmmwv->Advance(step_size);
+            node_vehicle->Advance(step_size);
             app->Advance(step_size);
 
             // Increment frame number
@@ -292,7 +238,7 @@ struct RosVehicle {
     double debug_step_size;
     std::shared_ptr<ChDriver> driver;
     std::shared_ptr<RigidTerrain> terrain;
-    std::shared_ptr<HMMWV_Full> my_hmmwv;
+    std::shared_ptr<WheeledVehicle> node_vehicle;
 };
 
 class SimNode : public rclcpp::Node {
@@ -311,8 +257,10 @@ private:
   void timer_callback() {
         myvehicle->advance_sim(.5);
         auto message = std::make_shared<geometry_msgs::msg::Twist>();
-        message->linear.x = 0.3;
-        message->angular.z = 0.3;
+
+        message->linear.x = myvehicle->node_vehicle->GetChassisBody()->GetPos().x();
+        message->linear.z =  myvehicle->node_vehicle->GetChassisBody()->GetPos().z();
+        message->angular.z =  myvehicle->node_vehicle->GetChassisBody()->GetRot().Q_to_Euler123().z();
 
         publisher_->publish(*message);
   }
@@ -320,6 +268,7 @@ private:
   void OnActuationMsg(const geometry_msgs::msg::Twist::SharedPtr _msg){
       myvehicle->driver->SetThrottle(_msg->linear.x);
       myvehicle->driver->SetSteering(_msg->angular.z);
+
     }
 
   rclcpp::TimerBase::SharedPtr timer_;
