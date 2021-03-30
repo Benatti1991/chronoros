@@ -33,7 +33,6 @@ using namespace chrono::irrlicht;
 using namespace chrono::vehicle;
 using namespace chrono::vehicle::hmmwv;
 
-
 struct RosVehicle {
 
     // =============================================================================
@@ -56,8 +55,6 @@ struct RosVehicle {
         // Collision type for chassis (PRIMITIVES, MESH, or NONE)
         CollisionType chassis_collision_type = CollisionType::NONE;
 
-
-
         // Drive type (FWD, RWD, or AWD)
         DrivelineTypeWV drive_type = DrivelineTypeWV::AWD;
 
@@ -66,12 +63,6 @@ struct RosVehicle {
 
         // Type of tire model (RIGID, RIGID_MESH, TMEASY, PACEJKA, LUGRE, FIALA, PAC89, PAC02)
         TireModelType tire_model = TireModelType::TMEASY;
-
-        // Rigid terrain
-        RigidTerrain::PatchType terrain_model = RigidTerrain::PatchType::BOX;
-        double terrainHeight = 0;      // terrain height (FLAT terrain only)
-        double terrainLength = 100.0;  // size in X direction
-        double terrainWidth = 100.0;   // size in Y direction
 
         // Point on chassis tracked by the camera
         ChVector<> trackPoint(0.0, 0.0, 1.75);
@@ -105,7 +96,10 @@ struct RosVehicle {
         // --------------
 
         // Create the HMMWV vehicle, set parameters, and initialize
-        auto vehicle_model = Sedan_Model();
+        auto vehicle_model = Full_JSON("/home/simonebenatti/codes/VariousProjects/ros_miscellaneous/fullvehiclejson.json");
+        std::cout<<vehicle_model.VehicleJSON() << '\n';
+        std::cout<<vehicle_model.PowertrainJSON() << '\n';
+        std::cout<<vehicle_model.TireJSON() << '\n';
         std::string rigidterrain_file("terrain/RigidPlane.json");
         node_vehicle = std::make_shared<WheeledVehicle>(vehicle::GetDataFile(vehicle_model.VehicleJSON()), ChContactMethod::NSC);
         node_vehicle->Initialize(ChCoordsys<>(initLoc, initRot));
@@ -132,19 +126,6 @@ struct RosVehicle {
         node_vehicle->SetWheelVisualizationType(wheel_vis_type);
         // Create the terrain
         terrain = std::make_shared<RigidTerrain>(node_vehicle->GetSystem(), vehicle::GetDataFile(rigidterrain_file));
-
-        MaterialInfo minfo;
-        minfo.mu = 0.9f;
-        minfo.cr = 0.01f;
-        minfo.Y = 2e7f;
-        auto patch_mat = minfo.CreateMaterial(contact_method);
-        std::shared_ptr<RigidTerrain::Patch> patch;
-        patch = terrain->AddPatch(patch_mat, ChVector<>(0, 0, 0), ChVector<>(0, 0, 1), terrainLength,
-                                         terrainWidth);
-        patch->SetTexture(vehicle::GetDataFile("terrain/textures/tile4.jpg"), 200, 200);
-        patch->SetColor(ChColor(0.8f, 0.8f, 0.5f));
-
-        terrain->Initialize();
 
         // Create the vehicle Irrlicht interface
         app = std::make_shared<ChWheeledVehicleIrrApp>(node_vehicle.get(), L"HMMWV Demo");
@@ -174,10 +155,6 @@ struct RosVehicle {
         // Number of simulation steps between miscellaneous events
         render_steps = (int) std::ceil(render_step_size / step_size);
         debug_steps = (int) std::ceil(debug_step_size / step_size);
-
-        // Initialize simulation frame counters
-        //int step_number = 0;
-        //int render_frame = 0;
 
         if (contact_vis) {
             app->SetSymbolscale(1e-4);
@@ -242,16 +219,22 @@ struct RosVehicle {
 };
 
 class SimNode : public rclcpp::Node {
-public:
-  SimNode() : Node("chrono_sim") {
-    auto default_qos = rclcpp::QoS(rclcpp::SystemDefaultsQoS());
-    myvehicle = std::make_shared<RosVehicle>();
-    actuation_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
-              "vehicle_actuation", default_qos,
-              std::bind(&SimNode::OnActuationMsg, this, std::placeholders::_1));
-    publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("vehicle_pose", 10);
-    timer_ = this->create_wall_timer(20ms, std::bind(&SimNode::timer_callback, this));
+  public:
+    SimNode() : Node("chrono_sim") {
+      this->declare_parameter<std::string>("my_parameter", "world");
+      this->get_parameter<std::string>("my_parameter", parameter_string_);
+      std::cout<< "\n" + parameter_string_ + "\n";
+      auto default_qos = rclcpp::QoS(rclcpp::SystemDefaultsQoS());
+      myvehicle = std::make_shared<RosVehicle>();
+      actuation_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
+                "vehicle_actuation", default_qos,
+                std::bind(&SimNode::OnActuationMsg, this, std::placeholders::_1));
+      publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("vehicle_pose", 10);
+      timer_ = this->create_wall_timer(20ms, std::bind(&SimNode::timer_callback, this));
   }
+
+  private:
+    std::string parameter_string_;
 
 private:
   void timer_callback() {
@@ -278,6 +261,8 @@ private:
 };
 
 int main(int argc, char *argv[]) {
+
+
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<SimNode>());
   rclcpp::shutdown();

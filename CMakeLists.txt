@@ -35,6 +35,7 @@ endif()
 #--------------------------------------------------------------
 
 include_directories(${CHRONO_INCLUDE_DIRS})
+include_directories(./include)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
