@@ -101,7 +101,8 @@ class MAN_Model : public Vehicle_Model {
 class Full_JSON : public Vehicle_Model {
 public:
     Full_JSON(std::string json_path) {
-        Document d = ReadFileJSON(json_path);
+        Document d;
+        ReadFileJSON(json_path, d);
         if (d.IsNull()) {
             std::cout << "No JSON file found";
             return;
