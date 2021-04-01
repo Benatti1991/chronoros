@@ -41,6 +41,7 @@ using namespace chrono::vehicle;
 using namespace chrono::vehicle::hmmwv;
 using namespace chrono::sensor;
 
+
 struct RosVehicle {
 
     // =============================================================================
@@ -173,6 +174,14 @@ struct RosVehicle {
         utils::ChRunningAverage RTF_filter(50);
         app->GetDevice()->run();
     }
+
+    ~RosVehicle() {
+        delete lidar_sensor.get();
+        delete sens_manager.get();
+        delete this;
+
+    }
+
     void advance_sim(double deltaT) {
         double partial = 0;
         while(partial <= deltaT) {
@@ -197,13 +206,14 @@ struct RosVehicle {
             driver->Synchronize(time);
             terrain->Synchronize(time);
             node_vehicle->Synchronize(time, driver_inputs, *terrain);
-            app->Synchronize("", driver_inputs);
+
 
             // Advance simulation for one timestep for all modules
             driver->Advance(step_size);
             terrain->Advance(step_size);
             node_vehicle->Advance(step_size);
             app->Advance(step_size);
+            app->Synchronize("", driver_inputs);
 
             // Increment frame number
             step_number++;
@@ -271,7 +281,7 @@ class SimNode : public rclcpp::Node {
         myvehicle->driver->SetSteering(_msg->angular.z);
 
       }
-
+  public:
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr actuation_sub_;
@@ -280,11 +290,21 @@ class SimNode : public rclcpp::Node {
     std::string parameter_string_;
 };
 
+
+void shutnode(SimNode& node){
+    delete node.myvehicle.get();
+}
+
+
+
 int main(int argc, char *argv[]) {
 
     //std::this_thread::sleep_for(std::chrono::milliseconds(30000));
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<SimNode>());
+    auto mnode = std::make_shared<SimNode>();
+    rclcpp::spin(mnode);
+    std::function<void()> f_shutnode = [mnode]() {  shutnode(*mnode);};
+    rclcpp::on_shutdown( f_shutnode);
     rclcpp::shutdown();
     return 0;
 }
