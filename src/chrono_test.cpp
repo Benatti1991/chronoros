@@ -2,6 +2,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <thread>
 
 #include "geometry_msgs/msg/twist.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -11,6 +12,7 @@
 #include "chrono/core/ChRealtimeStep.h"
 #include "chrono/utils/ChUtilsInputOutput.h"
 #include "chrono/utils/ChFilters.h"
+
 #include "chrono_vehicle/ChConfigVehicle.h"
 #include "chrono_vehicle/ChVehicleModelData.h"
 #include "chrono_vehicle/terrain/RigidTerrain.h"
@@ -22,6 +24,11 @@
 #include "chrono_thirdparty/filesystem/path.h"
 #include "chrono_vehicle/utils/ChUtilsJSON.h"
 #include "chrono_vehicle/wheeled_vehicle/vehicle/WheeledVehicle.h"
+
+#include "chrono_sensor/Sensor.h"
+#include "chrono_sensor/ChLidarSensor.h"
+#include "chrono_sensor/ChSensorManager.h"
+
 #include "ChronoRos.h"
 ///
 
@@ -32,6 +39,7 @@ using namespace chrono;
 using namespace chrono::irrlicht;
 using namespace chrono::vehicle;
 using namespace chrono::vehicle::hmmwv;
+using namespace chrono::sensor;
 
 struct RosVehicle {
 
@@ -39,8 +47,10 @@ struct RosVehicle {
 
     RosVehicle() {
         GetLog() << "Copyright (c) 2017 projectchrono.org\nChrono version: " << CHRONO_VERSION << "\n\n";
-        SetChronoDataPath("/home/simonebenatti/codes/chronosensor/chrono/data/");
-        SetDataPath("/home/simonebenatti/codes/chronosensor/chrono/data/vehicle/");
+        // Set the data directory because we are outside of the chrono demos folder
+        SetChronoDataPath(CHRONO_DATA_DIR);
+        vehicle::SetDataPath(std::string(CHRONO_DATA_DIR) + "vehicle/");
+        //synchrono::SetDataPath(std::string(CHRONO_DATA_DIR) + "synchrono/");
         // Initial vehicle location and orientation
         ChVector<> initLoc(0, 0, 1.6);
         ChQuaternion<> initRot(1, 0, 0, 0);
@@ -69,7 +79,6 @@ struct RosVehicle {
 
         // Contact method
         ChContactMethod contact_method = ChContactMethod::SMC;
-        bool contact_vis = false;
 
         // Simulation step sizes
         step_size = 3e-3;
@@ -81,13 +90,8 @@ struct RosVehicle {
         // Time interval between two render frames
         render_step_size = 1.0 / 50;  // FPS = 50
 
-        // Output directories
-        const std::string out_dir = GetChronoOutputPath() + "HMMWV";
-        const std::string pov_dir = out_dir + "/POVRAY";
+        //const std::string pov_dir = out_dir + "/POVRAY";
 
-        // Debug logging
-        bool debug_output = false;
-        debug_step_size = 1.0 / 1;  // FPS = 1
 
         // POV-Ray output
         bool povray_output = false;
@@ -127,6 +131,7 @@ struct RosVehicle {
         // Create the terrain
         terrain = std::make_shared<RigidTerrain>(node_vehicle->GetSystem(), vehicle::GetDataFile(rigidterrain_file));
 
+
         // Create the vehicle Irrlicht interface
         app = std::make_shared<ChWheeledVehicleIrrApp>(node_vehicle.get(), L"HMMWV Demo");
         app->SetSkyBox();
@@ -154,12 +159,15 @@ struct RosVehicle {
 
         // Number of simulation steps between miscellaneous events
         render_steps = (int) std::ceil(render_step_size / step_size);
-        debug_steps = (int) std::ceil(debug_step_size / step_size);
 
-        if (contact_vis) {
-            app->SetSymbolscale(1e-4);
-            app->SetContactsDrawMode(IrrContactsDrawMode::CONTACT_FORCES);
-        }
+        // -----------------------------------------------
+        // Sensors
+        // -----------------------------------------------
+        sens_manager = chrono_types::make_shared<ChSensorManager>(node_vehicle->GetSystem());
+        lidar_sensor = Sensor::CreateFromJSON(GetChronoDataFile("sensor/json/generic/Lidar.json"), node_vehicle->GetChassisBody(),
+                                              ChFrame<>({-5, 0, .5}, Q_from_AngZ(0)));
+        // add sensor to the manager
+        sens_manager->AddSensor(lidar_sensor);
 
         ChRealtimeStepTimer realtime_timer;
         utils::ChRunningAverage RTF_filter(50);
@@ -212,18 +220,23 @@ struct RosVehicle {
     double step_size;
     double tire_step_size;
     double render_step_size;
-    double debug_step_size;
     std::shared_ptr<ChDriver> driver;
     std::shared_ptr<RigidTerrain> terrain;
     std::shared_ptr<WheeledVehicle> node_vehicle;
+    std::shared_ptr<ChSensor> lidar_sensor;
+    std::shared_ptr<ChSensorManager> sens_manager;
 };
 
 class SimNode : public rclcpp::Node {
   public:
     SimNode() : Node("chrono_sim") {
+
+      /// Declare and get command line arguments
       this->declare_parameter<std::string>("my_parameter", "world");
       this->get_parameter<std::string>("my_parameter", parameter_string_);
       std::cout<< "\n" + parameter_string_ + "\n";
+      ///
+
       auto default_qos = rclcpp::QoS(rclcpp::SystemDefaultsQoS());
       myvehicle = std::make_shared<RosVehicle>();
       actuation_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
@@ -233,38 +246,45 @@ class SimNode : public rclcpp::Node {
       timer_ = this->create_wall_timer(20ms, std::bind(&SimNode::timer_callback, this));
   }
 
+
   private:
-    std::string parameter_string_;
+    void timer_callback() {
+          myvehicle->advance_sim(.5);
+          auto message = std::make_shared<geometry_msgs::msg::Twist>();
 
-private:
-  void timer_callback() {
-        myvehicle->advance_sim(.5);
-        auto message = std::make_shared<geometry_msgs::msg::Twist>();
+          message->linear.x = myvehicle->node_vehicle->GetChassisBody()->GetPos().x();
+          message->linear.z =  myvehicle->node_vehicle->GetChassisBody()->GetPos().z();
+          message->angular.z =  myvehicle->node_vehicle->GetChassisBody()->GetRot().Q_to_Euler123().z();
 
-        message->linear.x = myvehicle->node_vehicle->GetChassisBody()->GetPos().x();
-        message->linear.z =  myvehicle->node_vehicle->GetChassisBody()->GetPos().z();
-        message->angular.z =  myvehicle->node_vehicle->GetChassisBody()->GetRot().Q_to_Euler123().z();
+          /// Get lidar data and pass them to a ROS2 pointcloud
+          UserXYZIBufferPtr lidar_data = myvehicle->lidar_sensor->GetMostRecentBuffer<UserXYZIBufferPtr>();
+          if (lidar_data->Buffer) {
+              //num_lidar_updates++;
+              std::cout << "Data recieved from lidar. Frame: "  << std::endl;
+          }
 
-        publisher_->publish(*message);
-  }
-
-  void OnActuationMsg(const geometry_msgs::msg::Twist::SharedPtr _msg){
-      myvehicle->driver->SetThrottle(_msg->linear.x);
-      myvehicle->driver->SetSteering(_msg->angular.z);
-
+          publisher_->publish(*message);
     }
 
-  rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
-  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr actuation_sub_;
-  std::shared_ptr<RosVehicle> myvehicle;
+    void OnActuationMsg(const geometry_msgs::msg::Twist::SharedPtr _msg){
+        myvehicle->driver->SetThrottle(_msg->linear.x);
+        myvehicle->driver->SetSteering(_msg->angular.z);
+
+      }
+
+    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr actuation_sub_;
+    std::shared_ptr<RosVehicle> myvehicle;
+    /// Command line arguments
+    std::string parameter_string_;
 };
 
 int main(int argc, char *argv[]) {
 
-
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<SimNode>());
-  rclcpp::shutdown();
-  return 0;
+    //std::this_thread::sleep_for(std::chrono::milliseconds(30000));
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<SimNode>());
+    rclcpp::shutdown();
+    return 0;
 }

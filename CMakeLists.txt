@@ -17,7 +17,7 @@ endif()
 
 LIST(APPEND CMAKE_PREFIX_PATH "${CMAKE_INSTALL_PREFIX}/../Chrono/lib")
 find_package(Chrono
-             COMPONENTS Vehicle Sensor Irrlicht
+             COMPONENTS Vehicle Sensor Irrlicht Synchrono
              CONFIG)
 
 #--------------------------------------------------------------
@@ -56,6 +56,11 @@ endif()
 add_executable(chrono_test_node src/chrono_test.cpp)
 target_link_libraries(chrono_test_node ${CHRONO_LIBRARIES})
 ament_target_dependencies(chrono_test_node rclcpp geometry_msgs Chrono)
+
+set_target_properties(chrono_test_node PROPERTIES
+        COMPILE_FLAGS "${CHRONO_CXX_FLAGS} ${EXTRA_COMPILE_FLAGS}"
+        COMPILE_DEFINITIONS "CHRONO_DATA_DIR=\"${CHRONO_DATA_DIR}\""
+        LINK_FLAGS "${CHRONO_LINKER_FLAGS}")
 
 install(TARGETS
   chrono_test_node
