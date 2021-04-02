@@ -41,6 +41,8 @@ include_directories(./include)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(PCL REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -55,7 +57,7 @@ endif()
 
 add_executable(chrono_test_node src/chrono_test.cpp)
 target_link_libraries(chrono_test_node ${CHRONO_LIBRARIES})
-ament_target_dependencies(chrono_test_node rclcpp geometry_msgs Chrono)
+ament_target_dependencies(chrono_test_node rclcpp geometry_msgs sensor_msgs PCL Chrono)
 
 set_target_properties(chrono_test_node PROPERTIES
         COMPILE_FLAGS "${CHRONO_CXX_FLAGS} ${EXTRA_COMPILE_FLAGS}"

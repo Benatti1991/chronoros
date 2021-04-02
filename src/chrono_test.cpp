@@ -3,8 +3,11 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "geometry_msgs/msg/twist.hpp"
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <pcl/conversions.h>
 #include "rclcpp/rclcpp.hpp"
 
 /// CHRONO HEADERS
@@ -165,8 +168,8 @@ struct RosVehicle {
         // Sensors
         // -----------------------------------------------
         sens_manager = chrono_types::make_shared<ChSensorManager>(node_vehicle->GetSystem());
-        lidar_sensor = Sensor::CreateFromJSON(GetChronoDataFile("sensor/json/generic/Lidar.json"), node_vehicle->GetChassisBody(),
-                                              ChFrame<>({-5, 0, .5}, Q_from_AngZ(0)));
+        lidar_sensor = std::dynamic_pointer_cast<ChLidarSensor>(Sensor::CreateFromJSON(GetChronoDataFile("sensor/json/generic/Lidar.json"), node_vehicle->GetChassisBody(),
+                                              ChFrame<>({-5, 0, .5}, Q_from_AngZ(0))));
         // add sensor to the manager
         sens_manager->AddSensor(lidar_sensor);
 
@@ -233,7 +236,7 @@ struct RosVehicle {
     std::shared_ptr<ChDriver> driver;
     std::shared_ptr<RigidTerrain> terrain;
     std::shared_ptr<WheeledVehicle> node_vehicle;
-    std::shared_ptr<ChSensor> lidar_sensor;
+    std::shared_ptr<ChLidarSensor> lidar_sensor;
     std::shared_ptr<ChSensorManager> sens_manager;
 };
 
@@ -268,9 +271,20 @@ class SimNode : public rclcpp::Node {
 
           /// Get lidar data and pass them to a ROS2 pointcloud
           UserXYZIBufferPtr lidar_data = myvehicle->lidar_sensor->GetMostRecentBuffer<UserXYZIBufferPtr>();
+          sensor_msgs::msg::PointCloud2 pcl;
+          pcl.width = lidar_data->Width;
+          pcl.height = lidar_data->Height;
+          uint8_t* sensdata = reinterpret_cast<uint8_t*>( lidar_data->Buffer.get());
+          std::vector<uint8_t> vec(sensdata, sensdata + lidar_data->Width * lidar_data->Height * int(sizeof(PixelXYZI)/sizeof(float)) );
+          pcl.data = vec;
           if (lidar_data->Buffer) {
               //num_lidar_updates++;
               std::cout << "Data recieved from lidar. Frame: "  << std::endl;
+
+              //*h = $self->Height;
+              //*w = $self->Width;
+              //*c = 1;
+              //*vec = reinterpret_cast<uint8_t*>($self->Buffer.get());
           }
 
           publisher_->publish(*message);
