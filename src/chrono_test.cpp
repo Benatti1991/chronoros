@@ -269,22 +269,23 @@ class SimNode : public rclcpp::Node {
           message->linear.z =  myvehicle->node_vehicle->GetChassisBody()->GetPos().z();
           message->angular.z =  myvehicle->node_vehicle->GetChassisBody()->GetRot().Q_to_Euler123().z();
 
-          /// Get lidar data and pass them to a ROS2 pointcloud
-          UserXYZIBufferPtr lidar_data = myvehicle->lidar_sensor->GetMostRecentBuffer<UserXYZIBufferPtr>();
-          sensor_msgs::msg::PointCloud2 pcl;
-          pcl.width = lidar_data->Width;
-          pcl.height = lidar_data->Height;
-          uint8_t* sensdata = reinterpret_cast<uint8_t*>( lidar_data->Buffer.get());
-          std::vector<uint8_t> vec(sensdata, sensdata + lidar_data->Width * lidar_data->Height * int(sizeof(PixelXYZI)/sizeof(float)) );
-          pcl.data = vec;
-          if (lidar_data->Buffer) {
+
+
+          //pcl::PCLPointCloud2 pcl;
+          //pcl.width = lidar_data->Width;
+          //pcl.height = lidar_data->Height;
+          //float* sensdata = reinterpret_cast<float*>( lidar_data->Buffer.get());
+        UserXYZIBufferPtr lidar_data = myvehicle->lidar_sensor->GetMostRecentBuffer<UserXYZIBufferPtr>();
+        if (lidar_data->Buffer) {
               //num_lidar_updates++;
               std::cout << "Data recieved from lidar. Frame: "  << std::endl;
 
-              //*h = $self->Height;
-              //*w = $self->Width;
-              //*c = 1;
-              //*vec = reinterpret_cast<uint8_t*>($self->Buffer.get());
+              /// Get lidar data and pass them to a ROS2 pointcloud
+              float* sensdata = reinterpret_cast<float*>( lidar_data->Buffer.get());
+              pcl::PointCloud<float>::Ptr cloudPCLptr2(new pcl::PointCloud<float>);
+              int npoints = lidar_data->Width * lidar_data->Height * int(sizeof(PixelXYZI)/sizeof(float));
+              cloudPCLptr2->points.resize(npoints );
+              memcpy(&(cloudPCLptr2->points[0]), sensdata, npoints * sizeof(float));
           }
 
           publisher_->publish(*message);
