@@ -7,6 +7,8 @@
 
 #include "geometry_msgs/msg/twist.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/point_field.hpp>
+//#include <sensor_msgs/msg/point_field__struct.hpp>
 //#include <sensor_msgs/impl/point_cloud2_iterator.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <pcl/ros/conversions.h>
@@ -277,6 +279,10 @@ class SimNode : public rclcpp::Node {
 
           lidarscan = std::make_shared<sensor_msgs::msg::PointCloud2>();
           sensor_msgs::PointCloud2Modifier modifier(*lidarscan);
+          modifier.setPointCloud2Fields(4, "x", 1, sensor_msgs::msg::PointField::FLOAT32,
+                                           "y", 1, sensor_msgs::msg::PointField::FLOAT32,
+                                           "z", 1, sensor_msgs::msg::PointField::FLOAT32,
+                                           "i", 1, sensor_msgs::msg::PointField::FLOAT32);
           sensor_msgs::PointCloud2Iterator<float> iter_x(*lidarscan, "x");
           sensor_msgs::PointCloud2Iterator<float> iter_y(*lidarscan, "y");
           sensor_msgs::PointCloud2Iterator<float> iter_z(*lidarscan, "z");
@@ -288,31 +294,31 @@ class SimNode : public rclcpp::Node {
 
           if (lidar_data->Buffer) {
                 //num_lidar_updates++;
-                std::cout << "Data recieved from lidar. Frame: "  << std::endl;
+                //std::cout << "Data recieved from lidar. Frame: "  << std::endl;
 
                 /// Get lidar data and pass them to a ROS2 pointcloud
                 //float* sensdata = reinterpret_cast<float*>( lidar_data->Buffer.get());
                 int npoints = lidar_data->Width * lidar_data->Height * int(sizeof(PixelXYZI)/sizeof(float));
 
-                modifier.resize(npoints);
-                //lidarscan->header.frame_id=sOutTwoDLidar.id; //topic name to be published for lidar
-                lidarscan->width = lidar_data->Width;
-                lidarscan->height = lidar_data->Height;
-                lidarscan->point_step = 4*sizeof(float); //calculate the no of bytes in point cloud for each point
-                lidarscan->row_step = lidarscan->width * lidarscan->point_step;
-                //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-                for(int i=0;i<lidarscan->width;++i,++iter_x, ++iter_y, ++iter_z, ++iter_i)
-                {
-                    *iter_x = lidar_data->Buffer[i].x;//segmentation  fault here
-                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-                    *iter_y = lidar_data->Buffer[i].y;
-                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-                    *iter_z = lidar_data->Buffer[i].z;
-                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-                    *iter_i = lidar_data->Buffer[i].intensity;
-                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-//
-                }
+                //modifier.resize(npoints);
+                ////lidarscan->header.frame_id=sOutTwoDLidar.id; //topic name to be published for lidar
+                //lidarscan->width = lidar_data->Width;
+                //lidarscan->height = lidar_data->Height;
+                //lidarscan->point_step = 4*sizeof(float); //calculate the no of bytes in point cloud for each point
+                //lidarscan->row_step = lidarscan->width * lidarscan->point_step;
+                ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                //for(int i=0;i<lidarscan->width;++i,++iter_x, ++iter_y, ++iter_z, ++iter_i)
+                //{
+                //    *iter_x = lidar_data->Buffer[i].x;//segmentation  fault here
+                //    std::cout<<"\n Writing the 2d lidar data, iteration  "<< i <<std::endl;
+                //    *iter_y = lidar_data->Buffer[i].y;
+                //    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                //    *iter_z = lidar_data->Buffer[i].z;
+                //    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                //    *iter_i = lidar_data->Buffer[i].intensity;
+                //    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+////
+                //}
 
             }
 
