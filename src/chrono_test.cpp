@@ -7,7 +7,10 @@
 
 #include "geometry_msgs/msg/twist.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <pcl/conversions.h>
+//#include <sensor_msgs/impl/point_cloud2_iterator.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <pcl/ros/conversions.h>
+#include <pcl/point_types.h>
 #include "rclcpp/rclcpp.hpp"
 
 /// CHRONO HEADERS
@@ -272,18 +275,47 @@ class SimNode : public rclcpp::Node {
           message->linear.z =  myvehicle->node_vehicle->GetChassisBody()->GetPos().z();
           message->angular.z =  myvehicle->node_vehicle->GetChassisBody()->GetRot().Q_to_Euler123().z();
 
+          lidarscan = std::make_shared<sensor_msgs::msg::PointCloud2>();
+          sensor_msgs::PointCloud2Modifier modifier(*lidarscan);
+          sensor_msgs::PointCloud2Iterator<float> iter_x(*lidarscan, "x");
+          sensor_msgs::PointCloud2Iterator<float> iter_y(*lidarscan, "y");
+          sensor_msgs::PointCloud2Iterator<float> iter_z(*lidarscan, "z");
+          sensor_msgs::PointCloud2Iterator<float> iter_i(*lidarscan, "i");
+          lidarscan->header.frame_id = "map";
+          lidarscan->header.stamp = now();
+
           UserXYZIBufferPtr lidar_data = myvehicle->lidar_sensor->GetMostRecentBuffer<UserXYZIBufferPtr>();
+
           if (lidar_data->Buffer) {
                 //num_lidar_updates++;
                 std::cout << "Data recieved from lidar. Frame: "  << std::endl;
 
                 /// Get lidar data and pass them to a ROS2 pointcloud
-                float* sensdata = reinterpret_cast<float*>( lidar_data->Buffer.get());
-                pcl::PointCloud<float>::Ptr cloudPCLptr2(new pcl::PointCloud<float>);
+                //float* sensdata = reinterpret_cast<float*>( lidar_data->Buffer.get());
                 int npoints = lidar_data->Width * lidar_data->Height * int(sizeof(PixelXYZI)/sizeof(float));
-                cloudPCLptr2->points.resize(npoints );
-                memcpy(&(cloudPCLptr2->points[0]), sensdata, npoints * sizeof(float));
+
+                modifier.resize(npoints);
+                //lidarscan->header.frame_id=sOutTwoDLidar.id; //topic name to be published for lidar
+                lidarscan->width = lidar_data->Width;
+                lidarscan->height = lidar_data->Height;
+                lidarscan->point_step = 4*sizeof(float); //calculate the no of bytes in point cloud for each point
+                lidarscan->row_step = lidarscan->width * lidarscan->point_step;
+                //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                for(int i=0;i<lidarscan->width;++i,++iter_x, ++iter_y, ++iter_z, ++iter_i)
+                {
+                    *iter_x = lidar_data->Buffer[i].x;//segmentation  fault here
+                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                    *iter_y = lidar_data->Buffer[i].y;
+                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                    *iter_z = lidar_data->Buffer[i].z;
+                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                    *iter_i = lidar_data->Buffer[i].intensity;
+                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+//
+                }
+
             }
+
           publisher_->publish(*message);
     }
 
@@ -296,6 +328,7 @@ class SimNode : public rclcpp::Node {
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr actuation_sub_;
+    sensor_msgs::msg::PointCloud2::SharedPtr lidarscan;
     std::shared_ptr<RosVehicle> myvehicle;
     /// Command line arguments
     std::string parameter_string_;
