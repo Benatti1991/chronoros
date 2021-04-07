@@ -9,8 +9,8 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
 //#include <sensor_msgs/msg/point_field__struct.hpp>
-//#include <sensor_msgs/impl/point_cloud2_iterator.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <sensor_msgs/impl/point_cloud2_iterator.hpp>
 #include <pcl/ros/conversions.h>
 #include <pcl/point_types.h>
 #include "rclcpp/rclcpp.hpp"
@@ -279,14 +279,12 @@ class SimNode : public rclcpp::Node {
 
           lidarscan = std::make_shared<sensor_msgs::msg::PointCloud2>();
           sensor_msgs::PointCloud2Modifier modifier(*lidarscan);
+          modifier.resize(1440000);
           modifier.setPointCloud2Fields(4, "x", 1, sensor_msgs::msg::PointField::FLOAT32,
                                            "y", 1, sensor_msgs::msg::PointField::FLOAT32,
                                            "z", 1, sensor_msgs::msg::PointField::FLOAT32,
                                            "i", 1, sensor_msgs::msg::PointField::FLOAT32);
-          sensor_msgs::PointCloud2Iterator<float> iter_x(*lidarscan, "x");
-          sensor_msgs::PointCloud2Iterator<float> iter_y(*lidarscan, "y");
-          sensor_msgs::PointCloud2Iterator<float> iter_z(*lidarscan, "z");
-          sensor_msgs::PointCloud2Iterator<float> iter_i(*lidarscan, "i");
+
           lidarscan->header.frame_id = "map";
           lidarscan->header.stamp = now();
 
@@ -300,17 +298,23 @@ class SimNode : public rclcpp::Node {
                 //float* sensdata = reinterpret_cast<float*>( lidar_data->Buffer.get());
                 int npoints = lidar_data->Width * lidar_data->Height;
 
-                modifier.resize(npoints);
+                //modifier.resize(npoints);
+                //lidarscan->data.resize(npoints);
                 ////lidarscan->header.frame_id=sOutTwoDLidar.id; //topic name to be published for lidar
                 lidarscan->width = lidar_data->Width;
                 lidarscan->height = lidar_data->Height;
                 lidarscan->point_step = 4*sizeof(float); //calculate the no of bytes in point cloud for each point
                 lidarscan->row_step = lidarscan->width * lidarscan->point_step;
                 ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                sensor_msgs::PointCloud2Iterator<float> iter_x(*lidarscan, "x");
+                sensor_msgs::PointCloud2Iterator<float> iter_y(*lidarscan, "y");
+                sensor_msgs::PointCloud2Iterator<float> iter_z(*lidarscan, "z");
+                sensor_msgs::PointCloud2Iterator<float> iter_i(*lidarscan, "i");
                 for(int i=0;i<npoints;++i,++iter_x, ++iter_y, ++iter_z, ++iter_i)
                 {
-                    //iter_x[i] = .5;//lidar_data->Buffer[i].x;//segmentation  fault here
-                    //std::cout<<"\n Writing the 2d lidar data, iteration  "<< i <<std::endl;
+                    //*iter_x = .5;//segmentation  fault here
+                    *iter_x = lidar_data->Buffer[i].x;//segmentation  fault here
+                    std::cout<<"\n Writing the 2d lidar data, iteration  "<< i <<std::endl;
                     //*iter_y = lidar_data->Buffer[i].y;
                     ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
                     //*iter_z = lidar_data->Buffer[i].z;
