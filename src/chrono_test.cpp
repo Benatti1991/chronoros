@@ -314,13 +314,13 @@ class SimNode : public rclcpp::Node {
                 {
                     //*iter_x = .5;//segmentation  fault here
                     *iter_x = lidar_data->Buffer[i].x;//segmentation  fault here
-                    std::cout<<"\n Writing the 2d lidar data, iteration  "<< i <<std::endl;
-                    //*iter_y = lidar_data->Buffer[i].y;
-                    ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-                    //*iter_z = lidar_data->Buffer[i].z;
-                    ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-                    //*iter_i = lidar_data->Buffer[i].intensity;
-                    ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                    //std::cout<<"\n Writing the 2d lidar data, iteration  "<< i <<std::endl;
+                    *iter_y = lidar_data->Buffer[i].y;
+                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                    *iter_z = lidar_data->Buffer[i].z;
+                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                    *iter_i = lidar_data->Buffer[i].intensity;
+                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
 
                 }
 
