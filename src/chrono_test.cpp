@@ -298,27 +298,27 @@ class SimNode : public rclcpp::Node {
 
                 /// Get lidar data and pass them to a ROS2 pointcloud
                 //float* sensdata = reinterpret_cast<float*>( lidar_data->Buffer.get());
-                int npoints = lidar_data->Width * lidar_data->Height * int(sizeof(PixelXYZI)/sizeof(float));
+                int npoints = lidar_data->Width * lidar_data->Height;
 
-                //modifier.resize(npoints);
+                modifier.resize(npoints);
                 ////lidarscan->header.frame_id=sOutTwoDLidar.id; //topic name to be published for lidar
-                //lidarscan->width = lidar_data->Width;
-                //lidarscan->height = lidar_data->Height;
-                //lidarscan->point_step = 4*sizeof(float); //calculate the no of bytes in point cloud for each point
-                //lidarscan->row_step = lidarscan->width * lidarscan->point_step;
+                lidarscan->width = lidar_data->Width;
+                lidarscan->height = lidar_data->Height;
+                lidarscan->point_step = 4*sizeof(float); //calculate the no of bytes in point cloud for each point
+                lidarscan->row_step = lidarscan->width * lidarscan->point_step;
                 ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-                //for(int i=0;i<lidarscan->width;++i,++iter_x, ++iter_y, ++iter_z, ++iter_i)
-                //{
-                //    *iter_x = lidar_data->Buffer[i].x;//segmentation  fault here
-                //    std::cout<<"\n Writing the 2d lidar data, iteration  "<< i <<std::endl;
-                //    *iter_y = lidar_data->Buffer[i].y;
-                //    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-                //    *iter_z = lidar_data->Buffer[i].z;
-                //    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-                //    *iter_i = lidar_data->Buffer[i].intensity;
-                //    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-////
-                //}
+                for(int i=0;i<npoints;++i,++iter_x, ++iter_y, ++iter_z, ++iter_i)
+                {
+                    //iter_x[i] = .5;//lidar_data->Buffer[i].x;//segmentation  fault here
+                    //std::cout<<"\n Writing the 2d lidar data, iteration  "<< i <<std::endl;
+                    //*iter_y = lidar_data->Buffer[i].y;
+                    ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                    //*iter_z = lidar_data->Buffer[i].z;
+                    ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                    //*iter_i = lidar_data->Buffer[i].intensity;
+                    ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+
+                }
 
             }
 
