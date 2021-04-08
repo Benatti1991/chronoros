@@ -263,7 +263,7 @@ class SimNode : public rclcpp::Node {
       actuation_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
                 "vehicle_actuation", default_qos,
                 std::bind(&SimNode::OnActuationMsg, this, std::placeholders::_1));
-      publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("vehicle_pose", 10);
+      publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("vehicle_pcl", 10);
       timer_ = this->create_wall_timer(20ms, std::bind(&SimNode::timer_callback, this));
   }
 
@@ -271,15 +271,10 @@ class SimNode : public rclcpp::Node {
   private:
     void timer_callback() {
           myvehicle->advance_sim(.5);
-          auto message = std::make_shared<geometry_msgs::msg::Twist>();
-
-          message->linear.x = myvehicle->node_vehicle->GetChassisBody()->GetPos().x();
-          message->linear.z =  myvehicle->node_vehicle->GetChassisBody()->GetPos().z();
-          message->angular.z =  myvehicle->node_vehicle->GetChassisBody()->GetRot().Q_to_Euler123().z();
 
           lidarscan = std::make_shared<sensor_msgs::msg::PointCloud2>();
           sensor_msgs::PointCloud2Modifier modifier(*lidarscan);
-          modifier.resize(1440000);
+
           modifier.setPointCloud2Fields(4, "x", 1, sensor_msgs::msg::PointField::FLOAT32,
                                            "y", 1, sensor_msgs::msg::PointField::FLOAT32,
                                            "z", 1, sensor_msgs::msg::PointField::FLOAT32,
@@ -291,13 +286,8 @@ class SimNode : public rclcpp::Node {
           UserXYZIBufferPtr lidar_data = myvehicle->lidar_sensor->GetMostRecentBuffer<UserXYZIBufferPtr>();
 
           if (lidar_data->Buffer) {
-                //num_lidar_updates++;
-                //std::cout << "Data recieved from lidar. Frame: "  << std::endl;
-
                 /// Get lidar data and pass them to a ROS2 pointcloud
-                //float* sensdata = reinterpret_cast<float*>( lidar_data->Buffer.get());
                 int npoints = lidar_data->Width * lidar_data->Height;
-
                 //modifier.resize(npoints);
                 //lidarscan->data.resize(npoints);
                 ////lidarscan->header.frame_id=sOutTwoDLidar.id; //topic name to be published for lidar
@@ -305,28 +295,22 @@ class SimNode : public rclcpp::Node {
                 lidarscan->height = lidar_data->Height;
                 lidarscan->point_step = 4*sizeof(float); //calculate the no of bytes in point cloud for each point
                 lidarscan->row_step = lidarscan->width * lidarscan->point_step;
-                ////std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
+                modifier.resize(npoints);
                 sensor_msgs::PointCloud2Iterator<float> iter_x(*lidarscan, "x");
                 sensor_msgs::PointCloud2Iterator<float> iter_y(*lidarscan, "y");
                 sensor_msgs::PointCloud2Iterator<float> iter_z(*lidarscan, "z");
                 sensor_msgs::PointCloud2Iterator<float> iter_i(*lidarscan, "i");
                 for(int i=0;i<npoints;++i,++iter_x, ++iter_y, ++iter_z, ++iter_i)
                 {
-                    //*iter_x = .5;//segmentation  fault here
-                    *iter_x = lidar_data->Buffer[i].x;//segmentation  fault here
-                    //std::cout<<"\n Writing the 2d lidar data, iteration  "<< i <<std::endl;
+                    *iter_x = lidar_data->Buffer[i].x;
                     *iter_y = lidar_data->Buffer[i].y;
-                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
                     *iter_z = lidar_data->Buffer[i].z;
-                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
                     *iter_i = lidar_data->Buffer[i].intensity;
-                    //std::cout<<__LINE__<<" Printing the 2d lidar data "<<std::endl;
-
                 }
 
             }
 
-          publisher_->publish(*message);
+          publisher_->publish(*lidarscan);
     }
 
     void OnActuationMsg(const geometry_msgs::msg::Twist::SharedPtr _msg){
@@ -336,7 +320,7 @@ class SimNode : public rclcpp::Node {
       }
   public:
     rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr actuation_sub_;
     sensor_msgs::msg::PointCloud2::SharedPtr lidarscan;
     std::shared_ptr<RosVehicle> myvehicle;
