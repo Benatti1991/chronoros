@@ -36,8 +36,6 @@
 #include <sensor_msgs/msg/point_field.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <sensor_msgs/impl/point_cloud2_iterator.hpp>
-#include <pcl/ros/conversions.h>
-#include <pcl/point_types.h>
 #include "rclcpp/rclcpp.hpp"
 
 using namespace rapidjson;

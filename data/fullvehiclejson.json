@@ -1,0 +1,5 @@
+{
+  "Vehicle": "sedan/vehicle/Sedan_Vehicle.json",
+  "Powertrain": "sedan/powertrain/Sedan_SimpleMapPowertrain.json",
+  "Tire": "sedan/tire/Sedan_TMeasyTire.json"
+}
