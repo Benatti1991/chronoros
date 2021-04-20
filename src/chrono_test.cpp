@@ -32,9 +32,12 @@ public:
 
         auto default_qos = rclcpp::QoS(rclcpp::SystemDefaultsQoS());
         myvehicle = std::make_shared<RosVehicle>();
-        actuation_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
-                "vehicle_actuation", default_qos,
+        actuation_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleControlCommand>(
+                "/chrono/vehicle_control_cmd", default_qos,
                 std::bind(&SimNode::OnActuationMsg, this, std::placeholders::_1));
+        VSC_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleStateCommand>(
+                "/chrono/vehicle_state_cmd", default_qos,
+                std::bind(&SimNode::OnStateCommandMsg, this, std::placeholders::_1));
         pcl2_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/lidar_front/points_raw", 10);
         VSR_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleStateReport>("/chrono/state_report", 10);
         VOdo_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleOdometry>("/chrono/vehicle_odom", 10);
@@ -86,6 +89,7 @@ private:
 
         pcl2_publisher_->publish(*lidarscan);
 
+
         auto staterep = std::make_shared<autoware_auto_msgs::msg::VehicleStateReport>();
         staterep->fuel = 100;
         staterep->blinker = 0;
@@ -107,13 +111,50 @@ private:
                      break;
 
 }
-        staterep->wiper = 0;
+        VSR_publisher_->publish(*staterep);
+
+
+        auto odomrep = std::make_shared<autoware_auto_msgs::msg::VehicleOdometry>();
+        // Chrono uses meters, Autoware expects miles
+        odomrep->velocity_mps = myvehicle->node_vehicle->GetVehicleSpeed() / 1609,34;
+        odomrep->rear_wheel_angle_rad = 0;
+
+        ChQuaternion<> spindle_rel_rotL = myvehicle->node_vehicle->GetChassisBody()->GetRot().GetConjugate() % myvehicle->node_vehicle->GetSpindleRot(0, LEFT);
+        double spindle_relangleL = atan2(spindle_rel_rotL.GetYaxis().y(), spindle_rel_rotL.GetYaxis().x()) - CH_C_PI_2;
+
+        ChQuaternion<> spindle_rel_rotR = myvehicle->node_vehicle->GetChassisBody()->GetRot().GetConjugate() % myvehicle->node_vehicle->GetSpindleRot(0, RIGHT);
+        double spindle_relangleR = atan2(spindle_rel_rotR.GetYaxis().y(), spindle_rel_rotR.GetYaxis().x()) - CH_C_PI_2;
+
+        odomrep->front_wheel_angle_rad = (spindle_relangleL + spindle_relangleR) / 2;
+
+        VOdo_publisher_->publish(*odomrep);
 
     }
 
-    void OnActuationMsg(const geometry_msgs::msg::Twist::SharedPtr _msg){
-        myvehicle->driver->SetThrottle(_msg->linear.x);
-        myvehicle->driver->SetSteering(_msg->angular.z);
+    void OnActuationMsg(const autoware_auto_msgs::msg::VehicleControlCommand::SharedPtr _msg){
+        // Chrono expects meters, Autoware uses miles
+        myvehicle->target_acc = _msg->long_accel_mps2 * 1609,34;
+        myvehicle->target_wheelang = _msg->front_wheel_angle_rad;
+
+    }
+
+    void OnStateCommandMsg(const autoware_auto_msgs::msg::VehicleStateCommand::SharedPtr _msg){
+        int gear = _msg->gear;
+        switch(gear) {
+            case 0:
+                    myvehicle->node_vehicle->GetPowertrain()->SetDriveMode(ChPowertrain::DriveMode::FORWARD);
+                    break;
+            case 1:
+                    myvehicle->node_vehicle->GetPowertrain()->SetDriveMode(ChPowertrain::DriveMode::REVERSE);
+                    break;
+            case 4:
+                    myvehicle->node_vehicle->GetPowertrain()->SetDriveMode(ChPowertrain::DriveMode::NEUTRAL);
+                    break;
+            default:
+                     std::cout << "Gear not managed by Chrono\n";
+                     break;
+            }
+        return;
 
     }
 public:
@@ -121,7 +162,8 @@ public:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl2_publisher_;
     rclcpp::Publisher<autoware_auto_msgs::msg::VehicleStateReport>::SharedPtr VSR_publisher_;
     rclcpp::Publisher<autoware_auto_msgs::msg::VehicleOdometry>::SharedPtr VOdo_publisher_;
-    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr actuation_sub_;
+    rclcpp::Subscription<autoware_auto_msgs::msg::VehicleControlCommand>::SharedPtr actuation_sub_;
+    rclcpp::Subscription<autoware_auto_msgs::msg::VehicleStateCommand>::SharedPtr VSC_sub_;
     sensor_msgs::msg::PointCloud2::SharedPtr lidarscan;
     std::shared_ptr<RosVehicle> myvehicle;
     /// Command line arguments

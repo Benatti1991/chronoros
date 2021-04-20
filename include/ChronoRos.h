@@ -15,8 +15,9 @@
 #include "chrono_vehicle/ChConfigVehicle.h"
 #include "chrono_vehicle/ChVehicleModelData.h"
 #include "chrono_vehicle/terrain/RigidTerrain.h"
-#include "chrono_vehicle/driver/ChIrrGuiDriver.h"
 #include "chrono_vehicle/driver/ChDataDriver.h"
+#include "chrono_vehicle/driver/AIDriver.h"
+#include "chrono_models/vehicle/sedan/Sedan_AIDriver.h"
 #include "chrono_vehicle/output/ChVehicleOutputASCII.h"
 #include "chrono_vehicle/wheeled_vehicle/utils/ChWheeledVehicleIrrApp.h"
 #include "chrono_thirdparty/filesystem/path.h"
@@ -41,6 +42,7 @@
 #include <autoware_auto_msgs/msg/raw_control_command.hpp>
 #include <autoware_auto_msgs/msg/vehicle_kinematic_state.hpp>
 #include <autoware_auto_msgs/msg/vehicle_state_command.hpp>
+#include <autoware_auto_msgs/msg/vehicle_control_command.hpp>
 #include <autoware_auto_msgs/msg/vehicle_state_report.hpp>
 #include <autoware_auto_msgs/msg/vehicle_odometry.hpp>
 #include <autoware_auto_msgs/srv/autonomy_mode_change.hpp>
@@ -51,6 +53,8 @@ using namespace chrono::sensor;
 using namespace chrono;
 using namespace chrono::irrlicht;
 using namespace std::chrono_literals;
+// TODO: get rid of this as soon as aidriver is available for json
+using namespace chrono::vehicle::sedan;
 
 namespace chrono {
 namespace chronoros {
@@ -287,7 +291,7 @@ struct RosVehicle {
         // ------------------------
 
         // Create the interactive driver system
-        driver = std::make_shared<ChDriver>(*node_vehicle);
+        driver = std::make_shared<Sedan_AIDriver>(*node_vehicle);
         driver->Initialize();
 
         // Set the time response for steering and throttle keyboard inputs.
@@ -342,7 +346,7 @@ struct RosVehicle {
             ChDriver::Inputs driver_inputs = driver->GetInputs();
 
             // Update modules (process inputs from other modules)
-            driver->Synchronize(time);
+            driver->Synchronize(time, target_acc, target_wheelang, 0);
             terrain->Synchronize(time);
             node_vehicle->Synchronize(time, driver_inputs, *terrain);
 
@@ -374,7 +378,10 @@ struct RosVehicle {
     double step_size;
     double tire_step_size;
     double render_step_size;
-    std::shared_ptr<ChDriver> driver;
+    // Driver inputs:
+    double target_acc = 0;
+    double target_wheelang = 0;
+    std::shared_ptr<Sedan_AIDriver> driver;
     std::shared_ptr<RigidTerrain> terrain;
     std::shared_ptr<WheeledVehicle> node_vehicle;
     std::shared_ptr<ChLidarSensor> lidar_sensor;

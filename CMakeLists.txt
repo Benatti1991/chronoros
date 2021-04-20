@@ -37,12 +37,15 @@ endif()
 include_directories(${CHRONO_INCLUDE_DIRS})
 include_directories(./include)
 
+find_package(ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies()
 # find dependencies
-find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(PCL REQUIRED)
+#find_package(ament_cmake REQUIRED)
+#find_package(rclcpp REQUIRED)
+#find_package(geometry_msgs REQUIRED)
+#find_package(sensor_msgs REQUIRED)
+#find_package(autoware_auto_msgs REQUIRED)
+#find_package(PCL REQUIRED)
 
 
 get_filename_component(ABSOLUTE_CHRONOROSDATA_PATH "./data/" ABSOLUTE)
@@ -60,9 +63,9 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(chrono_test_node src/chrono_test.cpp)
+ament_auto_add_executable(chrono_test_node src/chrono_test.cpp)
 target_link_libraries(chrono_test_node ${CHRONO_LIBRARIES})
-ament_target_dependencies(chrono_test_node rclcpp geometry_msgs sensor_msgs PCL Chrono)
+ament_target_dependencies(chrono_test_node rclcpp geometry_msgs sensor_msgs autoware_auto_msgs autoware_auto_msgs Chrono)
 
 set_target_properties(chrono_test_node PROPERTIES
         COMPILE_FLAGS "${CHRONO_CXX_FLAGS} ${EXTRA_COMPILE_FLAGS}"
