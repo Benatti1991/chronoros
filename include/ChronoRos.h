@@ -31,12 +31,19 @@
 #include "chrono_models/vehicle/ChVehicleModelDefs.h"
 
 
+
 #include "geometry_msgs/msg/twist.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <sensor_msgs/impl/point_cloud2_iterator.hpp>
 #include "rclcpp/rclcpp.hpp"
+#include <autoware_auto_msgs/msg/raw_control_command.hpp>
+#include <autoware_auto_msgs/msg/vehicle_kinematic_state.hpp>
+#include <autoware_auto_msgs/msg/vehicle_state_command.hpp>
+#include <autoware_auto_msgs/msg/vehicle_state_report.hpp>
+#include <autoware_auto_msgs/msg/vehicle_odometry.hpp>
+#include <autoware_auto_msgs/srv/autonomy_mode_change.hpp>
 
 using namespace rapidjson;
 using namespace chrono::vehicle;

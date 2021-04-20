@@ -35,7 +35,9 @@ public:
         actuation_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
                 "vehicle_actuation", default_qos,
                 std::bind(&SimNode::OnActuationMsg, this, std::placeholders::_1));
-        publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("vehicle_pcl", 10);
+        pcl2_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/lidar_front/points_raw", 10);
+        VSR_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleStateReport>("/chrono/state_report", 10);
+        VOdo_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleOdometry>("/chrono/vehicle_odom", 10);
         timer_ = this->create_wall_timer(20ms, std::bind(&SimNode::timer_callback, this));
     }
 
@@ -82,7 +84,31 @@ private:
 
         }
 
-        publisher_->publish(*lidarscan);
+        pcl2_publisher_->publish(*lidarscan);
+
+        auto staterep = std::make_shared<autoware_auto_msgs::msg::VehicleStateReport>();
+        staterep->fuel = 100;
+        staterep->blinker = 0;
+        staterep->headlight = 0;
+        staterep->wiper = 0;
+        staterep->mode = 2;
+        staterep->hand_brake = false;
+        staterep->horn = false;
+        ChPowertrain::DriveMode dmode = myvehicle->node_vehicle->GetPowertrain()->GetDriveMode();
+        switch(dmode) {
+            case ChPowertrain::DriveMode::FORWARD: staterep->gear = 0;
+                    break;
+            case ChPowertrain::DriveMode::NEUTRAL: staterep->gear = 4;
+                    break;
+            case ChPowertrain::DriveMode::REVERSE: staterep->gear = 1;
+                    break;
+            default:
+                     std::cout << "Error in returning gear\n";
+                     break;
+
+}
+        staterep->wiper = 0;
+
     }
 
     void OnActuationMsg(const geometry_msgs::msg::Twist::SharedPtr _msg){
@@ -92,7 +118,9 @@ private:
     }
 public:
     rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl2_publisher_;
+    rclcpp::Publisher<autoware_auto_msgs::msg::VehicleStateReport>::SharedPtr VSR_publisher_;
+    rclcpp::Publisher<autoware_auto_msgs::msg::VehicleOdometry>::SharedPtr VOdo_publisher_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr actuation_sub_;
     sensor_msgs::msg::PointCloud2::SharedPtr lidarscan;
     std::shared_ptr<RosVehicle> myvehicle;
