@@ -38,7 +38,7 @@ public:
         VSC_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleStateCommand>(
                 "/chrono/vehicle_state_cmd", default_qos,
                 std::bind(&SimNode::OnStateCommandMsg, this, std::placeholders::_1));
-        pcl2_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/lidar_front/points_raw", 10);
+        pcl2_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/points_raw", 10);
         VSR_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleStateReport>("/chrono/state_report", 10);
         VOdo_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleOdometry>("/chrono/vehicle_odom", 10);
         timer_ = this->create_wall_timer(20ms, std::bind(&SimNode::timer_callback, this));
@@ -57,7 +57,7 @@ private:
                                       "z", 1, sensor_msgs::msg::PointField::FLOAT32,
                                       "i", 1, sensor_msgs::msg::PointField::FLOAT32);
 
-        lidarscan->header.frame_id = "map";
+        lidarscan->header.frame_id = "/lidar_front";
         lidarscan->header.stamp = now();
 
         UserXYZIBufferPtr lidar_data = myvehicle->lidar_sensor->GetMostRecentBuffer<UserXYZIBufferPtr>();
@@ -100,17 +100,17 @@ private:
         staterep->horn = false;
         ChPowertrain::DriveMode dmode = myvehicle->node_vehicle->GetPowertrain()->GetDriveMode();
         switch(dmode) {
-            case ChPowertrain::DriveMode::FORWARD: staterep->gear = 0;
+            case ChPowertrain::DriveMode::FORWARD: staterep->gear = 1;
                     break;
-            case ChPowertrain::DriveMode::NEUTRAL: staterep->gear = 4;
+            case ChPowertrain::DriveMode::NEUTRAL: staterep->gear = 5;
                     break;
-            case ChPowertrain::DriveMode::REVERSE: staterep->gear = 1;
+            case ChPowertrain::DriveMode::REVERSE: staterep->gear = 2;
                     break;
             default:
                      std::cout << "Error in returning gear\n";
                      break;
 
-}
+            }
         VSR_publisher_->publish(*staterep);
 
 
@@ -141,13 +141,13 @@ private:
     void OnStateCommandMsg(const autoware_auto_msgs::msg::VehicleStateCommand::SharedPtr _msg){
         int gear = _msg->gear;
         switch(gear) {
-            case 0:
+            case 1:
                     myvehicle->node_vehicle->GetPowertrain()->SetDriveMode(ChPowertrain::DriveMode::FORWARD);
                     break;
-            case 1:
+            case 2:
                     myvehicle->node_vehicle->GetPowertrain()->SetDriveMode(ChPowertrain::DriveMode::REVERSE);
                     break;
-            case 4:
+            case 5:
                     myvehicle->node_vehicle->GetPowertrain()->SetDriveMode(ChPowertrain::DriveMode::NEUTRAL);
                     break;
             default:
@@ -162,6 +162,7 @@ public:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl2_publisher_;
     rclcpp::Publisher<autoware_auto_msgs::msg::VehicleStateReport>::SharedPtr VSR_publisher_;
     rclcpp::Publisher<autoware_auto_msgs::msg::VehicleOdometry>::SharedPtr VOdo_publisher_;
+    // nav msg odom
     rclcpp::Subscription<autoware_auto_msgs::msg::VehicleControlCommand>::SharedPtr actuation_sub_;
     rclcpp::Subscription<autoware_auto_msgs::msg::VehicleStateCommand>::SharedPtr VSC_sub_;
     sensor_msgs::msg::PointCloud2::SharedPtr lidarscan;

@@ -48,8 +48,11 @@ ament_auto_find_build_dependencies()
 #find_package(PCL REQUIRED)
 
 
+
 get_filename_component(ABSOLUTE_CHRONOROSDATA_PATH "./data/" ABSOLUTE)
 add_definitions( -DCHRONOROS_DATA_DIR="${ABSOLUTE_CHRONOROSDATA_PATH}")
+add_definitions(-DASSETS_FOLDER_PATH=\"${ASSETS_PATH}\")
+
 
 
 if(BUILD_TESTING)
