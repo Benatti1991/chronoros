@@ -39,15 +39,6 @@ include_directories(./include)
 
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
-# find dependencies
-#find_package(ament_cmake REQUIRED)
-#find_package(rclcpp REQUIRED)
-#find_package(geometry_msgs REQUIRED)
-#find_package(sensor_msgs REQUIRED)
-#find_package(autoware_auto_msgs REQUIRED)
-#find_package(PCL REQUIRED)
-
-
 
 get_filename_component(ABSOLUTE_CHRONOROSDATA_PATH "./data/" ABSOLUTE)
 add_definitions( -DCHRONOROS_DATA_DIR="${ABSOLUTE_CHRONOROSDATA_PATH}")

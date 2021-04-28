@@ -16,7 +16,7 @@
 #include "chrono_vehicle/ChVehicleModelData.h"
 #include "chrono_vehicle/terrain/RigidTerrain.h"
 #include "chrono_vehicle/driver/ChDataDriver.h"
-#include "chrono_vehicle/driver/AIDriver.h"
+#include "chrono_vehicle/driver/ChAIDriver.h"
 #include "chrono_models/vehicle/sedan/Sedan_AIDriver.h"
 #include "chrono_vehicle/output/ChVehicleOutputASCII.h"
 #include "chrono_vehicle/wheeled_vehicle/utils/ChWheeledVehicleIrrApp.h"
@@ -78,7 +78,7 @@ class Vehicle_Model {
     virtual std::string PowertrainJSON() const = 0;
     virtual double CameraDistance() const = 0;
 };
-
+/*
 class HMMWV_Model : public Vehicle_Model {
   public:
     virtual std::string ModelName() const override { return "HMMWV"; }
@@ -109,51 +109,7 @@ class Sedan_Model : public Vehicle_Model {
     }
     virtual double CameraDistance() const override { return 6.0; }
 };
-
-class UAZ_Model : public Vehicle_Model {
-  public:
-    virtual std::string ModelName() const override { return "UAZ"; }
-    virtual std::string VehicleJSON() const override {
-        return "uaz/vehicle/UAZBUS_SAEVehicle.json";
-    }
-    virtual std::string TireJSON() const override {
-        return "uaz/tire/UAZBUS_TMeasyTireFront.json";
-    }
-    virtual std::string PowertrainJSON() const override {
-        return "uaz/powertrain/UAZBUS_SimpleMapPowertrain.json";
-    }
-    virtual double CameraDistance() const override { return 6.0; }
-};
-
-class CityBus_Model : public Vehicle_Model {
-  public:
-    virtual std::string ModelName() const override { return "CityBus"; }
-    virtual std::string VehicleJSON() const override {
-        return "citybus/vehicle/CityBus_Vehicle.json";
-    }
-    virtual std::string TireJSON() const override {
-        return "citybus/tire/CityBus_TMeasyTire.json";
-    }
-    virtual std::string PowertrainJSON() const override {
-        return "citybus/powertrain/CityBus_SimpleMapPowertrain.json";
-    }
-    virtual double CameraDistance() const override { return 14.0; }
-};
-
-class MAN_Model : public Vehicle_Model {
-  public:
-    virtual std::string ModelName() const override { return "MAN"; }
-    virtual std::string VehicleJSON() const override {
-        return "MAN_Kat1/vehicle/MAN_10t_Vehicle_8WD.json";
-    }
-    virtual std::string TireJSON() const override {
-        return "MAN_Kat1/tire/MAN_5t_TMeasyTire.json";
-    }
-    virtual std::string PowertrainJSON() const override {
-        return "MAN_Kat1/powertrain/MAN_7t_SimpleCVTPowertrain.json";
-    }
-    virtual double CameraDistance() const override { return 12.0; }
-};
+*/
 
 /// Class for a wheeled vehicle entirely defined by a JSON file
 class Full_JSON : public Vehicle_Model {
@@ -196,7 +152,11 @@ struct RosVehicle {
 
     // =============================================================================
 
-    RosVehicle(ChVector<> initLoc=DefLoc, ChQuaternion<> initRot=DefRot, double timestep = 3e-3, const std::string& vehicle_path = "/fullvehiclejson.json", bool render = true) {
+    RosVehicle(ChVector<> initLoc=DefLoc, ChQuaternion<> initRot=DefRot, double timestep = 3e-3,
+             const std::string& vehicle_path = "/fullvehiclejson.json",
+             const std::string& terrain_file = "/RigidPlane.json",
+             const std::string& lidar_json = "/Lidar.json",
+             bool render = true) {
         GetLog() << "Copyright (c) 2017 projectchrono.org\nChrono version: " << CHRONO_VERSION << "\n\n";
         // Set the data directory because we are outside of the chrono demos folder
         SetChronoDataPath(CHRONO_DATA_DIR);
@@ -247,12 +207,11 @@ struct RosVehicle {
         // Create systems
         // --------------
 
-        // Create the HMMWV vehicle, set parameters, and initialize
+        // Create the vehicle, set parameters, and initialize
         auto vehicle_model = Full_JSON(GetChronoRosDataFile(vehicle_path));
         std::cout<<vehicle_model.VehicleJSON() << '\n';
         std::cout<<vehicle_model.PowertrainJSON() << '\n';
         std::cout<<vehicle_model.TireJSON() << '\n';
-        std::string rigidterrain_file("terrain/RigidPlane.json");
         node_vehicle = std::make_shared<WheeledVehicle>(vehicle::GetDataFile(vehicle_model.VehicleJSON()), ChContactMethod::NSC);
         node_vehicle->Initialize(ChCoordsys<>(initLoc, initRot));
         node_vehicle->GetChassis()->SetFixed(false);
@@ -277,7 +236,7 @@ struct RosVehicle {
         node_vehicle->SetSteeringVisualizationType(steering_vis_type);
         node_vehicle->SetWheelVisualizationType(wheel_vis_type);
         // Create the terrain
-        terrain = std::make_shared<RigidTerrain>(node_vehicle->GetSystem(), vehicle::GetDataFile(rigidterrain_file));
+        terrain = std::make_shared<RigidTerrain>(node_vehicle->GetSystem(), GetChronoRosDataFile(terrain_file));
 
 
         // Create the vehicle Irrlicht interface
@@ -313,7 +272,7 @@ struct RosVehicle {
         // Sensors
         // -----------------------------------------------
         sens_manager = chrono_types::make_shared<ChSensorManager>(node_vehicle->GetSystem());
-        lidar_sensor = std::dynamic_pointer_cast<ChLidarSensor>(Sensor::CreateFromJSON(GetChronoDataFile("sensor/json/generic/Lidar.json"), node_vehicle->GetChassisBody(),
+        lidar_sensor = std::dynamic_pointer_cast<ChLidarSensor>(Sensor::CreateFromJSON(GetChronoRosDataFile(lidar_json), node_vehicle->GetChassisBody(),
                                                                                        ChFrame<>({-5, 0, .5}, Q_from_AngZ(0))));
         // add sensor to the manager
         sens_manager->AddSensor(lidar_sensor);

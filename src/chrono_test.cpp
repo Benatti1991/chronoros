@@ -57,7 +57,7 @@ private:
                                       "z", 1, sensor_msgs::msg::PointField::FLOAT32,
                                       "i", 1, sensor_msgs::msg::PointField::FLOAT32);
 
-        lidarscan->header.frame_id = "/lidar_front";
+        lidarscan->header.frame_id = "map";
         lidarscan->header.stamp = now();
 
         UserXYZIBufferPtr lidar_data = myvehicle->lidar_sensor->GetMostRecentBuffer<UserXYZIBufferPtr>();
