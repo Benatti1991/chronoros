@@ -163,6 +163,7 @@ public:
     rclcpp::Publisher<autoware_auto_msgs::msg::VehicleStateReport>::SharedPtr VSR_publisher_;
     rclcpp::Publisher<autoware_auto_msgs::msg::VehicleOdometry>::SharedPtr VOdo_publisher_;
     // nav msg odom
+    // vehicle kinematic state
     rclcpp::Subscription<autoware_auto_msgs::msg::VehicleControlCommand>::SharedPtr actuation_sub_;
     rclcpp::Subscription<autoware_auto_msgs::msg::VehicleStateCommand>::SharedPtr VSC_sub_;
     sensor_msgs::msg::PointCloud2::SharedPtr lidarscan;
