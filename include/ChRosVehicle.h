@@ -1,5 +1,5 @@
-#ifndef CHRONO_ROS_H
-#define CHRONO_ROS_H
+#ifndef CH_ROS_VEHICLE_H
+#define CH_ROS_VEHICLE_H
 
 #include <chrono>
 #include <functional>
@@ -47,6 +47,9 @@
 #include <autoware_auto_msgs/msg/vehicle_odometry.hpp>
 #include <autoware_auto_msgs/srv/autonomy_mode_change.hpp>
 
+#include "ChRosUtils.h"
+
+
 using namespace rapidjson;
 using namespace chrono::vehicle;
 using namespace chrono::sensor;
@@ -58,16 +61,6 @@ using namespace chrono::vehicle::sedan;
 
 namespace chrono {
 namespace chronoros {
-
-/// Function to get files in chronoros data directory
-std::string GetChronoRosDataFile(const std::string& filename){
-    return CHRONOROS_DATA_DIR + filename;
-}
-
-/// Function to get files in assets directory
-std::string GetAssetFile(const std::string& filename){
-    return ASSETS_FOLDER_PATH + filename;
-}
 
 /// base class gof JSON vehicle model
 class Vehicle_Model {
