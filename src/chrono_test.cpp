@@ -27,11 +27,17 @@ public:
         /// Declare and get command line arguments
         this->declare_parameter<std::string>("vehicle_json_path", "/fullvehiclejson.json");
         this->get_parameter<std::string>("vehicle_json_path", vehicle_file);
+        this->declare_parameter<std::string>("lidar_json_path", "/Lidar.json");
+        this->get_parameter<std::string>("lidar_json_path", lidar_file);
+        this->declare_parameter<std::string>("terrain_json_path", "/RigidPlane.json");
+        this->get_parameter<std::string>("terrain_json_path", terrain_file);
+        this->declare_parameter<bool>("irr_render", true);
+        this->get_parameter<bool>("irr_render", irr_render);
         //std::cout<< "\n" + parameter_string_ + "\n";
         ///
 
         auto default_qos = rclcpp::QoS(rclcpp::SystemDefaultsQoS());
-        myvehicle = std::make_shared<RosVehicle>("/Lidar.json",vehicle_file);
+        myvehicle = std::make_shared<RosVehicle>(lidar_file, vehicle_file, terrain_file, irr_render);
         actuation_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleControlCommand>(
                 "/chrono/vehicle_control_cmd", default_qos,
                 std::bind(&SimNode::OnActuationMsg, this, std::placeholders::_1));
