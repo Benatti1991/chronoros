@@ -5,10 +5,8 @@
 #include <thread>
 #include <vector>
 
-/// CHRONO HEADERS
 
 #include "ChRosNode.h"
-///
 
 
 using namespace std::chrono_literals;
@@ -17,8 +15,6 @@ using namespace chrono::irrlicht;
 using namespace chrono::vehicle;
 using namespace chrono::sensor;
 using namespace chrono::chronoros;
-
-
 
 
 void shutnode(ChRosNode& node){

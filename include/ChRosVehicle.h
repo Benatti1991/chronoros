@@ -31,22 +31,6 @@
 #include "chrono/utils/ChFilters.h"
 #include "chrono_models/vehicle/ChVehicleModelDefs.h"
 
-
-
-#include "geometry_msgs/msg/twist.hpp"
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/msg/point_field.hpp>
-#include <sensor_msgs/point_cloud2_iterator.hpp>
-#include <sensor_msgs/impl/point_cloud2_iterator.hpp>
-#include "rclcpp/rclcpp.hpp"
-#include <autoware_auto_msgs/msg/raw_control_command.hpp>
-#include <autoware_auto_msgs/msg/vehicle_kinematic_state.hpp>
-#include <autoware_auto_msgs/msg/vehicle_state_command.hpp>
-#include <autoware_auto_msgs/msg/vehicle_control_command.hpp>
-#include <autoware_auto_msgs/msg/vehicle_state_report.hpp>
-#include <autoware_auto_msgs/msg/vehicle_odometry.hpp>
-#include <autoware_auto_msgs/srv/autonomy_mode_change.hpp>
-
 #include "ChRosUtils.h"
 
 
@@ -71,38 +55,6 @@ class Vehicle_Model {
     virtual std::string PowertrainJSON() const = 0;
     virtual double CameraDistance() const = 0;
 };
-/*
-class HMMWV_Model : public Vehicle_Model {
-  public:
-    virtual std::string ModelName() const override { return "HMMWV"; }
-    virtual std::string VehicleJSON() const override {
-        return "hmmwv/vehicle/HMMWV_Vehicle.json";
-        ////return "hmmwv/vehicle/HMMWV_Vehicle_4WD.json";
-    }
-    virtual std::string TireJSON() const override {
-        return "hmmwv/tire/HMMWV_Pac02Tire.json";
-    }
-    virtual std::string PowertrainJSON() const override {
-        return "hmmwv/powertrain/HMMWV_ShaftsPowertrain.json";
-    }
-    virtual double CameraDistance() const override { return 6.0; }
-};
-
-class Sedan_Model : public Vehicle_Model {
-  public:
-    virtual std::string ModelName() const override { return "Sedan"; }
-    virtual std::string VehicleJSON() const override {
-        return "sedan/vehicle/Sedan_Vehicle.json";
-    }
-    virtual std::string TireJSON() const override {
-        return "sedan/tire/Sedan_TMeasyTire.json";
-    }
-    virtual std::string PowertrainJSON() const override {
-        return "sedan/powertrain/Sedan_SimpleMapPowertrain.json";
-    }
-    virtual double CameraDistance() const override { return 6.0; }
-};
-*/
 
 /// Class for a wheeled vehicle entirely defined by a JSON file
 class Full_JSON : public Vehicle_Model {
@@ -146,10 +98,9 @@ public:
     ChQuaternion<> InitRot;
 };
 
-ChVector<> DefLoc(0, 0, 1.6);
-ChQuaternion<> DefRot(1, 0, 0, 0);
-struct RosVehicle {
-
+/// Vehicle simulated by the Node, entirely defined (physics & sensors) through JSON files
+class RosVehicle {
+  public:
     // =============================================================================
 
     RosVehicle(const std::string& lidar_json = "/Lidar.json",
@@ -352,92 +303,6 @@ struct RosVehicle {
     std::shared_ptr<ChSensorManager> sens_manager;
 };
 
-/*
-void AddSceneMeshes(ChSystem* chsystem, RigidTerrain* terrain, ChVector&<> center, double radius, road_only = false) {
-    // load all meshes in input file, using instancing where possible
-    std::string base_path = GetChronoDataFile("/Environments/SanFrancisco/components_new/");
-    std::string input_file = base_path + "instance_map_03.csv";
-    // std::string input_file = base_path + "instance_map_roads_only.csv";
-
-    std::ifstream infile(input_file);
-    if (!infile.is_open())
-        throw std::runtime_error("Could not open file " + input_file);
-    std::string line, col;
-    std::vector<std::string> result;
-
-    std::unordered_map<std::string, std::shared_ptr<ChTriangleMeshConnected>> mesh_map;
-
-    auto mesh_body = chrono_types::make_shared<ChBody>();
-    mesh_body->SetBodyFixed(true);
-    mesh_body->SetCollide(false);
-    chsystem->Add(mesh_body);
-
-    int meshes_added = 0;
-    int mesh_offset = 0;
-    int num_meshes = 20000;
-
-    if (infile.good()) {
-        int mesh_count = 0;
-        int mesh_limit = mesh_offset + num_meshes;
-        while (std::getline(infile, line) && mesh_count < mesh_limit) {
-            if (mesh_count < mesh_offset) {
-                mesh_count++;
-            } else {
-                mesh_count++;
-                result.clear();
-                std::stringstream ss(line);
-                while (std::getline(ss, col, ',')) {
-                    result.push_back(col);
-                }
-                // std::cout << "Name: " << result[0] << ", mesh: " << result[1] << std::endl;
-                std::string mesh_name = result[0];
-                std::string mesh_obj = base_path + result[1] + ".obj";
-
-                // std::cout << mesh_name << std::endl;
-                if (mesh_name.find("EmissionOn") == std::string::npos) {  // exlude items with
-                                                                          // emission on
-
-                    if (!load_roads_only || mesh_name.find("Road") != std::string::npos) {
-                        ChVector<double> pos = {std::stod(result[2]), std::stod(result[3]), std::stod(result[4])};
-
-                        if ((pos - simulation_center).Length() < loading_radius) {
-                            // check if mesh is in map
-                            bool instance_found = false;
-                            std::shared_ptr<ChTriangleMeshConnected> mmesh;
-                            if (mesh_map.find(mesh_obj) != mesh_map.end()) {
-                                mmesh = mesh_map[mesh_obj];
-                                instance_found = true;
-                            } else {
-                                mmesh = chrono_types::make_shared<ChTriangleMeshConnected>();
-                                mmesh->LoadWavefrontMesh(mesh_obj, false, true);
-                                mesh_map[mesh_obj] = mmesh;
-                            }
-
-                            ChQuaternion<double> rot = {std::stod(result[5]), std::stod(result[6]),
-                                                        std::stod(result[7]), std::stod(result[8])};
-                            ChVector<double> scale = {std::stod(result[9]), std::stod(result[10]),
-                                                      std::stod(result[11])};
-
-                            // if not road, only add visualization with new pos,rot,scale
-                            auto trimesh_shape = chrono_types::make_shared<ChTriangleMeshShape>();
-                            trimesh_shape->SetMesh(mmesh);
-                            trimesh_shape->SetName(mesh_name);
-                            trimesh_shape->SetStatic(true);
-                            trimesh_shape->SetScale(scale);
-                            trimesh_shape->Pos = pos;
-                            trimesh_shape->Rot = ChMatrix33<>(rot);
-
-                            mesh_body->AddAsset(trimesh_shape);
-
-                            meshes_added++;
-                        }
-                    }
-                }
-            }
-        }
-        std::cout << "Total meshes: " << meshes_added << " | Unique meshes: " << mesh_map.size() << std::endl;
-    }
-}*/
 
 }  // end namespace chronoros
 }  // end namespace chrono

@@ -1,38 +1,6 @@
 #ifndef CH_ROS_NODE_H
 #define CH_ROS_NODE_H
 
-#include <chrono>
-#include <functional>
-#include <memory>
-#include <string>
-#include <thread>
-#include <vector>
-#include "chrono/core/ChCoordsys.h"
-#include "chrono/physics/ChSystem.h"
-#include "chrono/physics/ChMaterialSurface.h"
-#include "chrono_vehicle/utils/ChUtilsJSON.h"
-#include "chrono_thirdparty/cxxopts/ChCLI.h"
-#include "chrono_vehicle/ChConfigVehicle.h"
-#include "chrono_vehicle/ChVehicleModelData.h"
-#include "chrono_vehicle/terrain/RigidTerrain.h"
-#include "chrono_vehicle/driver/ChDataDriver.h"
-#include "chrono_vehicle/driver/ChAIDriver.h"
-#include "chrono_models/vehicle/sedan/Sedan_AIDriver.h"
-#include "chrono_vehicle/output/ChVehicleOutputASCII.h"
-#include "chrono_vehicle/wheeled_vehicle/utils/ChWheeledVehicleIrrApp.h"
-#include "chrono_thirdparty/filesystem/path.h"
-#include "chrono_vehicle/wheeled_vehicle/vehicle/WheeledVehicle.h"
-#include "chrono_sensor/Sensor.h"
-#include "chrono_sensor/ChLidarSensor.h"
-#include "chrono_sensor/ChSensorManager.h"
-#include "chrono/core/ChStream.h"
-#include "chrono/core/ChRealtimeStep.h"
-#include "chrono/utils/ChUtilsInputOutput.h"
-#include "chrono/utils/ChFilters.h"
-#include "chrono_models/vehicle/ChVehicleModelDefs.h"
-
-
-
 #include "geometry_msgs/msg/twist.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
