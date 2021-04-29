@@ -25,13 +25,13 @@ public:
     SimNode() : Node("chrono_sim") {
 
         /// Declare and get command line arguments
-        this->declare_parameter<std::string>("my_parameter", "world");
-        this->get_parameter<std::string>("my_parameter", parameter_string_);
-        std::cout<< "\n" + parameter_string_ + "\n";
+        this->declare_parameter<std::string>("vehicle_json_path", "/fullvehiclejson.json");
+        this->get_parameter<std::string>("vehicle_json_path", vehicle_file);
+        //std::cout<< "\n" + parameter_string_ + "\n";
         ///
 
         auto default_qos = rclcpp::QoS(rclcpp::SystemDefaultsQoS());
-        myvehicle = std::make_shared<RosVehicle>();
+        myvehicle = std::make_shared<RosVehicle>("/Lidar.json",vehicle_file);
         actuation_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleControlCommand>(
                 "/chrono/vehicle_control_cmd", default_qos,
                 std::bind(&SimNode::OnActuationMsg, this, std::placeholders::_1));
@@ -169,7 +169,10 @@ public:
     sensor_msgs::msg::PointCloud2::SharedPtr lidarscan;
     std::shared_ptr<RosVehicle> myvehicle;
     /// Command line arguments
-    std::string parameter_string_;
+    std::string vehicle_file;
+    std::string lidar_file;
+    std::string terrain_file;
+    bool irr_render;
 };
 
 

@@ -125,9 +125,14 @@ public:
         assert(d.HasMember("Vehicle"));
         assert(d.HasMember("Powertrain"));
         assert(d.HasMember("Tire"));
+        assert(d.HasMember("Init Location"));
+        assert(d.HasMember("Init Rotation"));
         VehicleJSONstr = d["Vehicle"].GetString();
         TireJSONstr = d["Tire"].GetString();
         PowertrainJSONstr = d["Powertrain"].GetString();
+        InitPos = ReadVectorJSON(d["Init Location"]);
+        InitRot = ReadQuaternionJSON(d["Init Rotation"]);
+
     }
     virtual std::string ModelName() const override { return "Custom"; }
     virtual std::string VehicleJSON() const override {
@@ -144,6 +149,8 @@ public:
     std::string VehicleJSONstr;
     std::string TireJSONstr;
     std::string PowertrainJSONstr;
+    ChVector<> InitPos;
+    ChQuaternion<> InitRot;
 };
 
 ChVector<> DefLoc(0, 0, 1.6);
@@ -152,11 +159,11 @@ struct RosVehicle {
 
     // =============================================================================
 
-    RosVehicle(ChVector<> initLoc=DefLoc, ChQuaternion<> initRot=DefRot, double timestep = 3e-3,
+    RosVehicle(const std::string& lidar_json = "/Lidar.json",
              const std::string& vehicle_path = "/fullvehiclejson.json",
              const std::string& terrain_file = "/RigidPlane.json",
-             const std::string& lidar_json = "/Lidar.json",
-             bool render = true) {
+             bool render = true,
+             double timestep = 3e-3) {
         GetLog() << "Copyright (c) 2017 projectchrono.org\nChrono version: " << CHRONO_VERSION << "\n\n";
         // Set the data directory because we are outside of the chrono demos folder
         SetChronoDataPath(CHRONO_DATA_DIR);
@@ -213,7 +220,7 @@ struct RosVehicle {
         std::cout<<vehicle_model.PowertrainJSON() << '\n';
         std::cout<<vehicle_model.TireJSON() << '\n';
         node_vehicle = std::make_shared<WheeledVehicle>(vehicle::GetDataFile(vehicle_model.VehicleJSON()), ChContactMethod::NSC);
-        node_vehicle->Initialize(ChCoordsys<>(initLoc, initRot));
+        node_vehicle->Initialize(ChCoordsys<>(vehicle_model.InitPos, vehicle_model.InitRot));
         node_vehicle->GetChassis()->SetFixed(false);
         node_vehicle->SetChassisVisualizationType(VisualizationType::MESH);
         node_vehicle->SetSuspensionVisualizationType(VisualizationType::PRIMITIVES);

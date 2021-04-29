@@ -1,5 +1,7 @@
 {
   "Vehicle": "sedan/vehicle/Sedan_Vehicle.json",
   "Powertrain": "sedan/powertrain/Sedan_SimpleMapPowertrain.json",
-  "Tire": "sedan/tire/Sedan_TMeasyTire.json"
+  "Tire": "sedan/tire/Sedan_TMeasyTire.json",
+  "Init Location": [ 0, 0, 1.6 ],
+  "Init Rotation": [ 1, 0, 0, 0 ]
 }
