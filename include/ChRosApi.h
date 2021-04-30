@@ -10,8 +10,8 @@
 //
 // =============================================================================
 
-#ifndef SYN_API_H
-#define SYN_API_H
+#ifndef CH_ROS_API_H
+#define CH_ROS_API_H
 
 #include "chrono/ChVersion.h"
 #include "chrono/core/ChPlatform.h"

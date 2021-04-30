@@ -32,7 +32,7 @@
 #include "chrono_models/vehicle/ChVehicleModelDefs.h"
 
 #include "ChRosApi.h"
-#include "ChRosUtils.h"
+
 
 
 using namespace rapidjson;
@@ -97,48 +97,7 @@ class CHROS_API RosVehicle {
 
     }
 
-    void advance_sim(double deltaT) {
-        double partial = 0;
-        while(partial <= deltaT) {
-            double time = node_vehicle->GetSystem()->GetChTime();
-
-            // End simulation
-            if (time >= t_end)
-                return;
-
-            // Render scene and output POV-Ray data
-            if (irr_render && step_number % render_steps == 0) {
-                app->BeginScene(true, true, irr::video::SColor(255, 140, 161, 192));
-                app->DrawAll();
-                app->EndScene();
-                render_frame++;
-            }
-
-            // Driver inputs
-            ChDriver::Inputs driver_inputs = driver->GetInputs();
-
-            // Update modules (process inputs from other modules)
-            driver->Synchronize(time, target_acc, target_wheelang, 0);
-            terrain->Synchronize(time);
-            node_vehicle->Synchronize(time, driver_inputs, *terrain);
-
-
-            // Advance simulation for one timestep for all modules
-            driver->Advance(step_size);
-            terrain->Advance(step_size);
-            node_vehicle->Advance(step_size);
-            if (irr_render) {
-                        app->Advance(step_size);
-                        app->Synchronize("", driver_inputs);
-                }
-            // Update the sensors
-            sens_manager->Update();
-
-            // Increment frame number
-            step_number++;
-            partial += step_size;
-        }
-    }
+    void advance_sim(double deltaT);
 
     double t_end;
     std::shared_ptr<ChWheeledVehicleIrrApp> app;

@@ -48,35 +48,26 @@ add_definitions(-DASSETS_FOLDER_PATH=\"${ASSETS_PATH}\")
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # uncomment the line when a copyright and license is not present in all source files
-  #set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # uncomment the line when this package is not in a git repo
-  #set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
 
 ament_auto_add_executable(chrono_test_node src/chrono_test.cpp)
 
 ament_auto_add_library(ChRos SHARED
-        src/ChRosVehicle.cpp)
+        src/ChRosVehicle.cpp
+        src/ChRosNode.cpp)
 
 target_link_libraries(ChRos ${CHRONO_LIBRARIES})
 target_link_libraries(chrono_test_node ChRos)
 
 ament_target_dependencies(ChRos rclcpp geometry_msgs sensor_msgs autoware_auto_msgs autoware_auto_msgs Chrono)
-ament_target_dependencies(chrono_test_node rclcpp geometry_msgs sensor_msgs autoware_auto_msgs autoware_auto_msgs Chrono)
 add_dependencies(chrono_test_node ChRos)
 
 set_target_properties(ChRos PROPERTIES
         COMPILE_FLAGS "${CHRONO_CXX_FLAGS} ${EXTRA_COMPILE_FLAGS}"
         COMPILE_DEFINITIONS "CHRONO_DATA_DIR=\"${CHRONO_DATA_DIR}\""
         LINK_FLAGS "${CHRONO_LINKER_FLAGS}")
-set_target_properties(chrono_test_node PROPERTIES
-        COMPILE_FLAGS "${CHRONO_CXX_FLAGS} ${EXTRA_COMPILE_FLAGS}"
-        COMPILE_DEFINITIONS "CHRONO_DATA_DIR=\"${CHRONO_DATA_DIR}\""
-        LINK_FLAGS "${CHRONO_LINKER_FLAGS}")
+
 
 install(TARGETS
   ChRos

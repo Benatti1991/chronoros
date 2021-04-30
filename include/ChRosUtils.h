@@ -15,12 +15,12 @@ namespace chrono {
 namespace chronoros {
 
 /// Function to get files in chronoros data directory
-std::string GetChronoRosDataFile(const std::string& filename){
+std::string static GetChronoRosDataFile(const std::string& filename){
     return CHRONOROS_DATA_DIR + filename;
 }
 
 /// Function to get files in assets directory
-std::string GetAssetFile(const std::string& filename){
+std::string static GetAssetFile(const std::string& filename){
     return ASSETS_FOLDER_PATH + filename;
 }
 
