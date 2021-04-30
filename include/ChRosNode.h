@@ -65,47 +65,46 @@ class ChRosNode : public rclcpp::Node {
 private:
     void timer_callback() {
         myvehicle->advance_sim(.5);
+        if(!lidar_file.empty()) {
+            lidarscan = std::make_shared<sensor_msgs::msg::PointCloud2>();
+            sensor_msgs::PointCloud2Modifier modifier(*lidarscan);
 
-        lidarscan = std::make_shared<sensor_msgs::msg::PointCloud2>();
-        sensor_msgs::PointCloud2Modifier modifier(*lidarscan);
+            modifier.setPointCloud2Fields(4, "x", 1, sensor_msgs::msg::PointField::FLOAT32,
+                                          "y", 1, sensor_msgs::msg::PointField::FLOAT32,
+                                          "z", 1, sensor_msgs::msg::PointField::FLOAT32,
+                                          "i", 1, sensor_msgs::msg::PointField::FLOAT32);
 
-        modifier.setPointCloud2Fields(4, "x", 1, sensor_msgs::msg::PointField::FLOAT32,
-                                      "y", 1, sensor_msgs::msg::PointField::FLOAT32,
-                                      "z", 1, sensor_msgs::msg::PointField::FLOAT32,
-                                      "i", 1, sensor_msgs::msg::PointField::FLOAT32);
+            lidarscan->header.frame_id = "map";
+            lidarscan->header.stamp = now();
 
-        lidarscan->header.frame_id = "map";
-        lidarscan->header.stamp = now();
+            UserXYZIBufferPtr lidar_data = myvehicle->lidar_sensor->GetMostRecentBuffer<UserXYZIBufferPtr>();
 
-        UserXYZIBufferPtr lidar_data = myvehicle->lidar_sensor->GetMostRecentBuffer<UserXYZIBufferPtr>();
+            if (lidar_data->Buffer) {
+                /// Get lidar data and pass them to a ROS2 pointcloud
+                int npoints = lidar_data->Width * lidar_data->Height;
+                //modifier.resize(npoints);
+                //lidarscan->data.resize(npoints);
+                ////lidarscan->header.frame_id=sOutTwoDLidar.id; //topic name to be published for lidar
+                lidarscan->width = lidar_data->Width;
+                lidarscan->height = lidar_data->Height;
+                lidarscan->point_step = 4 * sizeof(float); //calculate the no of bytes in point cloud for each point
+                lidarscan->row_step = lidarscan->width * lidarscan->point_step;
+                modifier.resize(npoints);
+                sensor_msgs::PointCloud2Iterator<float> iter_x(*lidarscan, "x");
+                sensor_msgs::PointCloud2Iterator<float> iter_y(*lidarscan, "y");
+                sensor_msgs::PointCloud2Iterator<float> iter_z(*lidarscan, "z");
+                sensor_msgs::PointCloud2Iterator<float> iter_i(*lidarscan, "i");
+                for (int i = 0; i < npoints; ++i, ++iter_x, ++iter_y, ++iter_z, ++iter_i) {
+                    *iter_x = lidar_data->Buffer[i].x;
+                    *iter_y = lidar_data->Buffer[i].y;
+                    *iter_z = lidar_data->Buffer[i].z;
+                    *iter_i = lidar_data->Buffer[i].intensity;
+                }
 
-        if (lidar_data->Buffer) {
-            /// Get lidar data and pass them to a ROS2 pointcloud
-            int npoints = lidar_data->Width * lidar_data->Height;
-            //modifier.resize(npoints);
-            //lidarscan->data.resize(npoints);
-            ////lidarscan->header.frame_id=sOutTwoDLidar.id; //topic name to be published for lidar
-            lidarscan->width = lidar_data->Width;
-            lidarscan->height = lidar_data->Height;
-            lidarscan->point_step = 4*sizeof(float); //calculate the no of bytes in point cloud for each point
-            lidarscan->row_step = lidarscan->width * lidarscan->point_step;
-            modifier.resize(npoints);
-            sensor_msgs::PointCloud2Iterator<float> iter_x(*lidarscan, "x");
-            sensor_msgs::PointCloud2Iterator<float> iter_y(*lidarscan, "y");
-            sensor_msgs::PointCloud2Iterator<float> iter_z(*lidarscan, "z");
-            sensor_msgs::PointCloud2Iterator<float> iter_i(*lidarscan, "i");
-            for(int i=0;i<npoints;++i,++iter_x, ++iter_y, ++iter_z, ++iter_i)
-            {
-                *iter_x = lidar_data->Buffer[i].x;
-                *iter_y = lidar_data->Buffer[i].y;
-                *iter_z = lidar_data->Buffer[i].z;
-                *iter_i = lidar_data->Buffer[i].intensity;
             }
 
+            pcl2_publisher_->publish(*lidarscan);
         }
-
-        pcl2_publisher_->publish(*lidarscan);
-
 
         auto staterep = std::make_shared<autoware_auto_msgs::msg::VehicleStateReport>();
         staterep->fuel = 100;

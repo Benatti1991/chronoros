@@ -223,11 +223,13 @@ class RosVehicle {
         // Sensors
         // -----------------------------------------------
         sens_manager = chrono_types::make_shared<ChSensorManager>(node_vehicle->GetSystem());
-        lidar_sensor = std::dynamic_pointer_cast<ChLidarSensor>(Sensor::CreateFromJSON(GetChronoRosDataFile(lidar_json), node_vehicle->GetChassisBody(),
-                                                                                       ChFrame<>({-5, 0, .5}, Q_from_AngZ(0))));
-        // add sensor to the manager
-        sens_manager->AddSensor(lidar_sensor);
-
+        if(!lidar_json.empty()) {
+            lidar_sensor = std::dynamic_pointer_cast<ChLidarSensor>(
+                    Sensor::CreateFromJSON(GetChronoRosDataFile(lidar_json), node_vehicle->GetChassisBody(),
+                                           ChFrame<>({-5, 0, .5}, Q_from_AngZ(0))));
+            // add sensor to the manager
+            sens_manager->AddSensor(lidar_sensor);
+        }
         ChRealtimeStepTimer realtime_timer;
         utils::ChRunningAverage RTF_filter(50);
         if (irr_render) app->GetDevice()->run();
