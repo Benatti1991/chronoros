@@ -31,6 +31,7 @@
 #include "chrono/utils/ChFilters.h"
 #include "chrono_models/vehicle/ChVehicleModelDefs.h"
 
+#include "ChRosApi.h"
 #include "ChRosUtils.h"
 
 
@@ -47,7 +48,7 @@ namespace chrono {
 namespace chronoros {
 
 /// base class gof JSON vehicle model
-class Vehicle_Model {
+class CHROS_API Vehicle_Model {
   public:
     virtual std::string ModelName() const = 0;
     virtual std::string VehicleJSON() const = 0;
@@ -57,49 +58,29 @@ class Vehicle_Model {
 };
 
 /// Class for a wheeled vehicle entirely defined by a JSON file
-class Full_JSON : public Vehicle_Model {
-public:
-    Full_JSON(std::string json_path) {
-        Document d;
-        ReadFileJSON(json_path, d);
-        if (d.IsNull()) {
-            std::cout << "No JSON file found";
-            return;
-        }
-        // Read top-level data
-        assert(d.HasMember("Vehicle"));
-        assert(d.HasMember("Powertrain"));
-        assert(d.HasMember("Tire"));
-        assert(d.HasMember("Init Location"));
-        assert(d.HasMember("Init Rotation"));
-        VehicleJSONstr = d["Vehicle"].GetString();
-        TireJSONstr = d["Tire"].GetString();
-        PowertrainJSONstr = d["Powertrain"].GetString();
-        InitPos = ReadVectorJSON(d["Init Location"]);
-        InitRot = ReadQuaternionJSON(d["Init Rotation"]);
-
-    }
+class CHROS_API Full_JSON : public Vehicle_Model {
+  public:
+    Full_JSON(std::string json_path);
     virtual std::string ModelName() const override { return "Custom"; }
     virtual std::string VehicleJSON() const override {
         return VehicleJSONstr;
-    }
+        }
     virtual std::string TireJSON() const override {
         return TireJSONstr;
-    }
+        }
     virtual std::string PowertrainJSON() const override {
         return PowertrainJSONstr;
-    }
+        }
     virtual double CameraDistance() const override { return 6.0; }
 
-    std::string VehicleJSONstr;
-    std::string TireJSONstr;
-    std::string PowertrainJSONstr;
-    ChVector<> InitPos;
-    ChQuaternion<> InitRot;
+std::string VehicleJSONstr;
+std::string TireJSONstr;
+std::string PowertrainJSONstr;
+ChVector<> InitPos;
+ChQuaternion<> InitRot;
 };
-
 /// Vehicle simulated by the Node, entirely defined (physics & sensors) through JSON files
-class RosVehicle {
+class CHROS_API RosVehicle {
   public:
     // =============================================================================
 
@@ -107,133 +88,7 @@ class RosVehicle {
              const std::string& vehicle_path = "/fullvehiclejson.json",
              const std::string& terrain_file = "/RigidPlane.json",
              bool render = true,
-             double timestep = 3e-3) {
-        GetLog() << "Copyright (c) 2017 projectchrono.org\nChrono version: " << CHRONO_VERSION << "\n\n";
-        // Set the data directory because we are outside of the chrono demos folder
-        SetChronoDataPath(CHRONO_DATA_DIR);
-        vehicle::SetDataPath(std::string(CHRONO_DATA_DIR) + "vehicle/");
-        irr_render = render;
-
-        // Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-        VisualizationType chassis_vis_type = VisualizationType::MESH;
-        VisualizationType suspension_vis_type = VisualizationType::PRIMITIVES;
-        VisualizationType steering_vis_type = VisualizationType::PRIMITIVES;
-        VisualizationType wheel_vis_type = VisualizationType::MESH;
-        VisualizationType tire_vis_type = VisualizationType::MESH;
-
-        // Collision type for chassis (PRIMITIVES, MESH, or NONE)
-        CollisionType chassis_collision_type = CollisionType::NONE;
-
-        // Drive type (FWD, RWD, or AWD)
-        DrivelineTypeWV drive_type = DrivelineTypeWV::AWD;
-
-        // Steering type (PITMAN_ARM or PITMAN_ARM_SHAFTS)
-        SteeringTypeWV steering_type = SteeringTypeWV::PITMAN_ARM;
-
-        // Type of tire model (RIGID, RIGID_MESH, TMEASY, PACEJKA, LUGRE, FIALA, PAC89, PAC02)
-        TireModelType tire_model = TireModelType::TMEASY;
-
-        // Point on chassis tracked by the camera
-        ChVector<> trackPoint(0.0, 0.0, 1.75);
-
-        // Contact method
-        ChContactMethod contact_method = ChContactMethod::SMC;
-
-        // Simulation step sizes
-        step_size = timestep;
-        tire_step_size = 1e-3;
-
-        // Simulation end time
-        t_end = 200;
-
-        // Time interval between two render frames
-        render_step_size = 1.0 / 50;  // FPS = 50
-
-        //const std::string pov_dir = out_dir + "/POVRAY";
-
-
-        // POV-Ray output
-        bool povray_output = false;
-        // --------------
-        // Create systems
-        // --------------
-
-        // Create the vehicle, set parameters, and initialize
-        auto vehicle_model = Full_JSON(GetChronoRosDataFile(vehicle_path));
-        std::cout<<vehicle_model.VehicleJSON() << '\n';
-        std::cout<<vehicle_model.PowertrainJSON() << '\n';
-        std::cout<<vehicle_model.TireJSON() << '\n';
-        node_vehicle = std::make_shared<WheeledVehicle>(vehicle::GetDataFile(vehicle_model.VehicleJSON()), ChContactMethod::NSC);
-        node_vehicle->Initialize(ChCoordsys<>(vehicle_model.InitPos, vehicle_model.InitRot));
-        node_vehicle->GetChassis()->SetFixed(false);
-        node_vehicle->SetChassisVisualizationType(VisualizationType::MESH);
-        node_vehicle->SetSuspensionVisualizationType(VisualizationType::PRIMITIVES);
-        node_vehicle->SetSteeringVisualizationType(VisualizationType::PRIMITIVES);
-        node_vehicle->SetWheelVisualizationType(VisualizationType::MESH);
-
-        auto powertrain = ReadPowertrainJSON(vehicle::GetDataFile(vehicle_model.PowertrainJSON()));
-        node_vehicle->InitializePowertrain(powertrain);
-
-        // Create and initialize the tires
-        for (auto& axle : node_vehicle->GetAxles()) {
-            for (auto& wheel : axle->GetWheels()) {
-                auto tire = ReadTireJSON(vehicle::GetDataFile(vehicle_model.TireJSON()));
-                node_vehicle->InitializeTire(tire, wheel, VisualizationType::MESH);
-            }
-        }
-
-        node_vehicle->SetChassisVisualizationType(chassis_vis_type);
-        node_vehicle->SetSuspensionVisualizationType(suspension_vis_type);
-        node_vehicle->SetSteeringVisualizationType(steering_vis_type);
-        node_vehicle->SetWheelVisualizationType(wheel_vis_type);
-        // Create the terrain
-        terrain = std::make_shared<RigidTerrain>(node_vehicle->GetSystem(), GetChronoRosDataFile(terrain_file));
-
-
-        // Create the vehicle Irrlicht interface
-        if (irr_render) {
-                    app = std::make_shared<ChWheeledVehicleIrrApp>(node_vehicle.get(), L"HMMWV Demo");
-                    app->SetSkyBox();
-                    app->AddTypicalLights(irr::core::vector3df(30.f, -30.f, 100.f), irr::core::vector3df(30.f, 50.f, 100.f), 250,
-                    130);
-                    app->SetChaseCamera(trackPoint, 6.0, 0.5);
-                    app->SetTimestep(step_size);
-                    app->AssetBindAll();
-                    app->AssetUpdateAll();
-            }
-        // ------------------------
-        // Create the driver system
-        // ------------------------
-
-        // Create the interactive driver system
-        driver = std::make_shared<Sedan_AIDriver>(*node_vehicle);
-        driver->Initialize();
-
-        // Set the time response for steering and throttle keyboard inputs.
-        double steering_time = 1.0;  // time to go from 0 to +1 (or from 0 to -1)
-        double throttle_time = 1.0;  // time to go from 0 to +1
-        double braking_time = 0.3;   // time to go from 0 to +1
-
-        node_vehicle->LogSubsystemTypes();
-
-        // Number of simulation steps between miscellaneous events
-        render_steps = (int) std::ceil(render_step_size / step_size);
-
-        // -----------------------------------------------
-        // Sensors
-        // -----------------------------------------------
-        sens_manager = chrono_types::make_shared<ChSensorManager>(node_vehicle->GetSystem());
-        if(!lidar_json.empty()) {
-            lidar_sensor = std::dynamic_pointer_cast<ChLidarSensor>(
-                    Sensor::CreateFromJSON(GetChronoRosDataFile(lidar_json), node_vehicle->GetChassisBody(),
-                                           ChFrame<>({-5, 0, .5}, Q_from_AngZ(0))));
-            // add sensor to the manager
-            sens_manager->AddSensor(lidar_sensor);
-        }
-        ChRealtimeStepTimer realtime_timer;
-        utils::ChRunningAverage RTF_filter(50);
-        if (irr_render) app->GetDevice()->run();
-    }
+             double timestep = 3e-3);
 
     ~RosVehicle() {
         delete lidar_sensor.get();

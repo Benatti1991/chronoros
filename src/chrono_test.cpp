@@ -10,10 +10,6 @@
 
 
 using namespace std::chrono_literals;
-using namespace chrono;
-using namespace chrono::irrlicht;
-using namespace chrono::vehicle;
-using namespace chrono::sensor;
 using namespace chrono::chronoros;
 
 

@@ -58,17 +58,34 @@ if(BUILD_TESTING)
 endif()
 
 ament_auto_add_executable(chrono_test_node src/chrono_test.cpp)
-target_link_libraries(chrono_test_node ${CHRONO_LIBRARIES})
-ament_target_dependencies(chrono_test_node rclcpp geometry_msgs sensor_msgs autoware_auto_msgs autoware_auto_msgs Chrono)
 
+ament_auto_add_library(ChRos SHARED
+        src/ChRosVehicle.cpp)
+
+target_link_libraries(ChRos ${CHRONO_LIBRARIES})
+target_link_libraries(chrono_test_node ChRos)
+
+ament_target_dependencies(ChRos rclcpp geometry_msgs sensor_msgs autoware_auto_msgs autoware_auto_msgs Chrono)
+ament_target_dependencies(chrono_test_node rclcpp geometry_msgs sensor_msgs autoware_auto_msgs autoware_auto_msgs Chrono)
+add_dependencies(chrono_test_node ChRos)
+
+set_target_properties(ChRos PROPERTIES
+        COMPILE_FLAGS "${CHRONO_CXX_FLAGS} ${EXTRA_COMPILE_FLAGS}"
+        COMPILE_DEFINITIONS "CHRONO_DATA_DIR=\"${CHRONO_DATA_DIR}\""
+        LINK_FLAGS "${CHRONO_LINKER_FLAGS}")
 set_target_properties(chrono_test_node PROPERTIES
         COMPILE_FLAGS "${CHRONO_CXX_FLAGS} ${EXTRA_COMPILE_FLAGS}"
         COMPILE_DEFINITIONS "CHRONO_DATA_DIR=\"${CHRONO_DATA_DIR}\""
         LINK_FLAGS "${CHRONO_LINKER_FLAGS}")
 
 install(TARGETS
-  chrono_test_node
-  DESTINATION lib/${PROJECT_NAME}
+  ChRos
+  DESTINATION lib
+)
+
+install(TARGETS
+    chrono_test_node
+    DESTINATION lib/${PROJECT_NAME}
 )
 
 # Install launch files.
