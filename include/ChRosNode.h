@@ -14,6 +14,7 @@
 #include <autoware_auto_msgs/msg/vehicle_state_report.hpp>
 #include <autoware_auto_msgs/msg/vehicle_odometry.hpp>
 #include <autoware_auto_msgs/srv/autonomy_mode_change.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 
 #include "ChRosVehicle.h"
 
@@ -52,7 +53,8 @@ public:
     rclcpp::Publisher<autoware_auto_msgs::msg::VehicleStateReport>::SharedPtr VSR_publisher_;
     rclcpp::Publisher<autoware_auto_msgs::msg::VehicleOdometry>::SharedPtr VOdo_publisher_;
     // nav msg odom
-    // vehicle kinematic state
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr NavOdo_publisher_;
+    rclcpp::Publisher<autoware_auto_msgs::msg::VehicleKinematicState>::SharedPtr VehKinState_publisher_;
     rclcpp::Subscription<autoware_auto_msgs::msg::VehicleControlCommand>::SharedPtr actuation_sub_;
     rclcpp::Subscription<autoware_auto_msgs::msg::VehicleStateCommand>::SharedPtr VSC_sub_;
     sensor_msgs::msg::PointCloud2::SharedPtr lidarscan;

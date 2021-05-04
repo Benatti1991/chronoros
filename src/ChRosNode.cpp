@@ -86,11 +86,15 @@ ChRosNode::ChRosNode() : Node("chrono_sim") {
     pcl2_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/points_raw", 10);
     VSR_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleStateReport>("/chrono/state_report", 10);
     VOdo_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleOdometry>("/chrono/vehicle_odom", 10);
+    NavOdo_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("/chrono/gnss_odom", 10);
+    VehKinState_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleKinematicState>("vehicle_kinematic_state", 10);
     timer_ = this->create_wall_timer(20ms, std::bind(&ChRosNode::timer_callback, this));
 }
 
 void ChRosNode::timer_callback() {
     myvehicle->advance_sim(.5);
+
+    ////////////// Publish Lidar Points /////////////////////////////
     if(!lidar_file.empty()) {
         lidarscan = std::make_shared<sensor_msgs::msg::PointCloud2>();
         sensor_msgs::PointCloud2Modifier modifier(*lidarscan);
@@ -132,6 +136,8 @@ void ChRosNode::timer_callback() {
         pcl2_publisher_->publish(*lidarscan);
     }
 
+
+    ////////////// Publish State Report /////////////////////////////
     auto staterep = std::make_shared<autoware_auto_msgs::msg::VehicleStateReport>();
     staterep->fuel = 100;
     staterep->blinker = 0;
@@ -155,22 +161,75 @@ void ChRosNode::timer_callback() {
     }
     VSR_publisher_->publish(*staterep);
 
-
-    auto odomrep = std::make_shared<autoware_auto_msgs::msg::VehicleOdometry>();
+    ////////////// Publish Vehicle Odometry /////////////////////////////
+    auto vehodom_msg = std::make_shared<autoware_auto_msgs::msg::VehicleOdometry>();
     // Chrono uses meters, Autoware expects miles
-    odomrep->velocity_mps = myvehicle->node_vehicle->GetVehicleSpeed() / 1609,34;
-    odomrep->rear_wheel_angle_rad = 0;
+    vehodom_msg->velocity_mps = myvehicle->node_vehicle->GetVehicleSpeed() / 1609,34;
+    vehodom_msg->rear_wheel_angle_rad = 0;
 
     ChQuaternion<> spindle_rel_rotL = myvehicle->node_vehicle->GetChassisBody()->GetRot().GetConjugate() % myvehicle->node_vehicle->GetSpindleRot(0, LEFT);
     double spindle_relangleL = atan2(spindle_rel_rotL.GetYaxis().y(), spindle_rel_rotL.GetYaxis().x()) - CH_C_PI_2;
 
     ChQuaternion<> spindle_rel_rotR = myvehicle->node_vehicle->GetChassisBody()->GetRot().GetConjugate() % myvehicle->node_vehicle->GetSpindleRot(0, RIGHT);
     double spindle_relangleR = atan2(spindle_rel_rotR.GetYaxis().y(), spindle_rel_rotR.GetYaxis().x()) - CH_C_PI_2;
+    double front_wheel_ang_rad = (spindle_relangleL + spindle_relangleR) / 2;
+    vehodom_msg->front_wheel_angle_rad = front_wheel_ang_rad;
 
-    odomrep->front_wheel_angle_rad = (spindle_relangleL + spindle_relangleR) / 2;
+    VOdo_publisher_->publish(*vehodom_msg);
 
-    VOdo_publisher_->publish(*odomrep);
 
+    ////////// Publish Navigation Odometry    ////////////////////
+    auto navodom_msg = std::make_shared<nav_msgs::msg::Odometry>();
+    navodom_msg->header.stamp = this->get_clock()->now();
+    ChVector<>      vehpos =  myvehicle->node_vehicle->GetChassisBody()->GetPos();
+    ChQuaternion<> vehrot =  myvehicle->node_vehicle->GetChassisBody()->GetRot();
+    navodom_msg->pose.pose.position.x = vehpos.x();
+    navodom_msg->pose.pose.position.y = vehpos.y();
+    navodom_msg->pose.pose.position.z = vehpos.z();
+    navodom_msg->pose.pose.orientation.x = vehrot.e1();
+    navodom_msg->pose.pose.orientation.y = vehrot.e2();
+    navodom_msg->pose.pose.orientation.z = vehrot.e3();
+    navodom_msg->pose.pose.orientation.w = vehrot.e0();
+
+    ChVector<>   vehvel =  myvehicle->node_vehicle->GetChassisBody()->GetPos_dt();
+    ChVector<> vehomega =  myvehicle->node_vehicle->GetChassisBody()->GetWvel_loc();
+    navodom_msg->twist.twist.linear.x = vehvel.x();
+    navodom_msg->twist.twist.linear.y = vehvel.y();
+    navodom_msg->twist.twist.linear.z = vehvel.z();
+    navodom_msg->twist.twist.angular.x = vehomega.x();
+    navodom_msg->twist.twist.angular.y = vehomega.y();
+    navodom_msg->twist.twist.angular.z = vehomega.z();
+
+    navodom_msg->twist.covariance = { };
+    navodom_msg->pose.covariance = { };
+
+    navodom_msg->header.frame_id = "/odom";
+    navodom_msg->child_frame_id = "/base_link";
+
+    NavOdo_publisher_->publish(*navodom_msg);
+
+
+    ////////////// Publish Vehicle Kinematic State /////////////////////////////
+    auto vehkinstate_msg = std::make_shared<autoware_auto_msgs::msg::VehicleKinematicState>();
+    vehkinstate_msg->header.stamp = this->get_clock()->now();
+    auto t_point = vehkinstate_msg->state;
+    auto cog_frame = myvehicle->node_vehicle->GetChassisBody()->GetFrame_COG_to_abs();
+    /// TODO
+    //vehkinstate_msg.time_from_start.sec;
+    //vehkinstate_msg.time_from_start.nanosec;
+    t_point.x = cog_frame.GetPos().x();
+    t_point.y = cog_frame.GetPos().y();
+    //t_point.heading = cog_frame.GetRot().Q_to_Euler123().z();
+    t_point.heading.real = cog_frame.GetA().Get_A_Xaxis().x();
+    t_point.heading.imag = cog_frame.GetA().Get_A_Xaxis().y();
+    t_point.longitudinal_velocity_mps = cog_frame.GetRot().RotateBack(cog_frame.GetPos_dt()).x() / 1609,34;
+    t_point.lateral_velocity_mps = cog_frame.GetRot().RotateBack(cog_frame.GetPos_dt()).y() / 1609,34;
+    t_point.acceleration_mps2 = cog_frame.GetPos_dtdt().Length() / 1609,34;
+    t_point.heading_rate_rps = cog_frame.GetWvel_par().z();
+    t_point.front_wheel_angle_rad = front_wheel_ang_rad;
+    t_point.rear_wheel_angle_rad = 0;
+
+    VehKinState_publisher_->publish(*vehkinstate_msg);
 }
 
 void ChRosNode::OnStateCommandMsg(const autoware_auto_msgs::msg::VehicleStateCommand::SharedPtr _msg){
