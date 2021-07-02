@@ -40,8 +40,9 @@ def generate_launch_description():
     # Specify the actions
     domain_expert_cmd = Node(
         package='chronoros',
-        node_executable='chrono_test_node',
+        executable='chrono_test_node',
         output='screen',
+        namespace='vehicle',
         parameters=[{'vehicle_json_path': vehicle_json_path},
                     {'lidar_json_path': lidar_json_path},
                     {'terrain_json_path': terrain_json_path},

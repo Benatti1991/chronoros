@@ -78,15 +78,15 @@ ChRosNode::ChRosNode() : Node("chrono_sim") {
     auto default_qos = rclcpp::QoS(rclcpp::SystemDefaultsQoS());
     myvehicle = std::make_shared<RosVehicle>(lidar_file, vehicle_file, terrain_file, irr_render);
     actuation_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleControlCommand>(
-            "/chrono/vehicle_control_cmd", default_qos,
+            "vehicle_command", default_qos,
             std::bind(&ChRosNode::OnActuationMsg, this, std::placeholders::_1));
     VSC_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleStateCommand>(
-            "/chrono/vehicle_state_cmd", default_qos,
+            "state_command", default_qos,
             std::bind(&ChRosNode::OnStateCommandMsg, this, std::placeholders::_1));
-    pcl2_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/points_raw", 10);
-    VSR_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleStateReport>("/chrono/state_report", 10);
-    VOdo_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleOdometry>("/chrono/vehicle_odom", 10);
-    NavOdo_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("/chrono/gnss_odom", 10);
+    pcl2_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("points_raw", 10);
+    VSR_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleStateReport>("state_report", 10);
+    VOdo_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleOdometry>("vehicle_odom", 10);
+    NavOdo_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("gnss_odom", 10);
     VehKinState_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleKinematicState>("vehicle_kinematic_state", 10);
     timer_ = this->create_wall_timer(20ms, std::bind(&ChRosNode::timer_callback, this));
 }
@@ -254,4 +254,3 @@ void ChRosNode::OnStateCommandMsg(const autoware_auto_msgs::msg::VehicleStateCom
 
 }  // end namespace chronoros
 }  // end namespace chrono
-
