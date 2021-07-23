@@ -76,9 +76,11 @@ ChRosNode::ChRosNode() : Node("chrono_sim") {
     ///
 
     auto default_qos = rclcpp::QoS(rclcpp::SystemDefaultsQoS());
-    myvehicle = std::make_shared<RosVehicle>(lidar_file, vehicle_file, terrain_file, irr_render);
+    myvehicle = std::
+    <RosVehicle>(lidar_file, vehicle_file, terrain_file, irr_render);
     actuation_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleControlCommand>(
-            "vehicle_command", default_qos,
+            "control_cmd", default_qos,
+
             std::bind(&ChRosNode::OnActuationMsg, this, std::placeholders::_1));
     VSC_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleStateCommand>(
             "state_command", default_qos,
@@ -88,11 +90,15 @@ ChRosNode::ChRosNode() : Node("chrono_sim") {
     VOdo_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleOdometry>("vehicle_odom", 10);
     NavOdo_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("gnss_odom", 10);
     VehKinState_publisher_ = this->create_publisher<autoware_auto_msgs::msg::VehicleKinematicState>("vehicle_kinematic_state", 10);
-    timer_ = this->create_wall_timer(20ms, std::bind(&ChRosNode::timer_callback, this));
+    timer_ = this->create_wall_timer(100ms, std::bind(&ChRosNode::timer_callback, this));
+    start_time = this->get_clock()->now().seconds();
 }
 
 void ChRosNode::timer_callback() {
-    myvehicle->advance_sim(.5);
+    // TODO SB This is very bad design. I should launch this in a std::async process and make it run in a separate thread
+    myvehicle->advance_sim(.1);
+    double mtime = this->get_clock()->now().seconds() - start_time;
+    //myvehicle->driver->Synchronize(mtime, mtime, 0, 0);
 
     ////////////// Publish Lidar Points /////////////////////////////
     if(!lidar_file.empty()) {
@@ -212,8 +218,12 @@ void ChRosNode::timer_callback() {
     ////////////// Publish Vehicle Kinematic State /////////////////////////////
     auto vehkinstate_msg = std::make_shared<autoware_auto_msgs::msg::VehicleKinematicState>();
     vehkinstate_msg->header.stamp = this->get_clock()->now();
+    const auto sim_odom_child_frame = "map";
+    vehkinstate_msg->header.frame_id = sim_odom_child_frame;
     auto t_point = vehkinstate_msg->state;
+    auto v_delta = vehkinstate_msg->delta;
     auto cog_frame = myvehicle->node_vehicle->GetChassisBody()->GetFrame_COG_to_abs();
+    auto delta_frame = myvehicle->node_vehicle->GetChassisBody()->GetFrame_REF_to_COG();
     /// TODO
     //vehkinstate_msg.time_from_start.sec;
     //vehkinstate_msg.time_from_start.nanosec;
@@ -228,6 +238,17 @@ void ChRosNode::timer_callback() {
     t_point.heading_rate_rps = cog_frame.GetWvel_par().z();
     t_point.front_wheel_angle_rad = front_wheel_ang_rad;
     t_point.rear_wheel_angle_rad = 0;
+    //RCLCPP_ERROR(this->get_logger(), "Frame is is");
+    //RCLCPP_ERROR(this->get_logger(), vehkinstate_msg->header.frame_id);
+
+    /*v_delta.translation.x = delta_frame.GetPos().x();
+    v_delta.translation.y = delta_frame.GetPos().y();
+    v_delta.translation.z = delta_frame.GetPos().z();
+    v_delta.rotation.w = delta_frame.GetRot().e0();
+    v_delta.rotation.x = delta_frame.GetRot().e1();
+    v_delta.rotation.y = delta_frame.GetRot().e2();
+    v_delta.rotation.z = delta_frame.GetRot().e3();
+    v_delta.header.frame_id = "cog_to_ref";*/
 
     VehKinState_publisher_->publish(*vehkinstate_msg);
 }

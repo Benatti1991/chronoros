@@ -64,6 +64,7 @@ public:
     std::string lidar_file;
     std::string terrain_file;
     bool irr_render;
+    double start_time;
 };
 
 }  // end namespace chronoros

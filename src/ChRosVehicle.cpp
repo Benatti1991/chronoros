@@ -258,4 +258,3 @@ void RosVehicle::advance_sim(double deltaT) {
 
 }  // end namespace chronoros
 }  // end namespace chrono
-
