@@ -76,11 +76,9 @@ ChRosNode::ChRosNode() : Node("chrono_sim") {
     ///
 
     auto default_qos = rclcpp::QoS(rclcpp::SystemDefaultsQoS());
-    myvehicle = std::
-    <RosVehicle>(lidar_file, vehicle_file, terrain_file, irr_render);
+    myvehicle = std::make_shared<RosVehicle>(lidar_file, vehicle_file, terrain_file, irr_render);
     actuation_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleControlCommand>(
-            "control_cmd", default_qos,
-
+            "vehicle_command", default_qos,
             std::bind(&ChRosNode::OnActuationMsg, this, std::placeholders::_1));
     VSC_sub_ = this->create_subscription<autoware_auto_msgs::msg::VehicleStateCommand>(
             "state_command", default_qos,
@@ -97,8 +95,6 @@ ChRosNode::ChRosNode() : Node("chrono_sim") {
 void ChRosNode::timer_callback() {
     // TODO SB This is very bad design. I should launch this in a std::async process and make it run in a separate thread
     myvehicle->advance_sim(.1);
-    double mtime = this->get_clock()->now().seconds() - start_time;
-    //myvehicle->driver->Synchronize(mtime, mtime, 0, 0);
 
     ////////////// Publish Lidar Points /////////////////////////////
     if(!lidar_file.empty()) {
@@ -272,6 +268,15 @@ void ChRosNode::OnStateCommandMsg(const autoware_auto_msgs::msg::VehicleStateCom
         return;
 
     }
+
+
+    /*void ChRosNode::OnActuationMsg(const autoware_auto_msgs::msg::VehicleControlCommand::SharedPtr _msg){
+        std::cout << "Actuation Message received and processed\n";
+        myvehicle->target_acc = _msg->long_accel_mps2 / 1609,34
+        myvehicle->target_wheelang =  _msg->front_wheel_angle_rad
+        return;
+
+      }*/
 
 }  // end namespace chronoros
 }  // end namespace chrono

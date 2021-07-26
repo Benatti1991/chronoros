@@ -40,6 +40,7 @@ private:
     void timer_callback();
 
     void OnActuationMsg(const autoware_auto_msgs::msg::VehicleControlCommand::SharedPtr _msg){
+        std::cout << "Actuation Message received and processed\n";
         // Chrono expects meters, Autoware uses miles
         myvehicle->target_acc = _msg->long_accel_mps2 * 1609,34;
         myvehicle->target_wheelang = _msg->front_wheel_angle_rad;
